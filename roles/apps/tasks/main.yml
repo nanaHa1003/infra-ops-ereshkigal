@@ -6,7 +6,7 @@
     mode: '0755'
   loop:
     - aria2
-    # - immich
+    - immich
 
 - name: Deploy Docker Compose templates
   ansible.builtin.template:
@@ -15,6 +15,7 @@
     mode: '0644'
   loop:
     - aria2
+    - immich
   register: compose_templates
 
 - name: Start Docker Stacks

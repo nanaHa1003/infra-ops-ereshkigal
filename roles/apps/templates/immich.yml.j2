@@ -1,0 +1,69 @@
+name: immich
+
+services:
+  immich-server:
+    container_name: immich_server
+    image: ghcr.io/immich-app/immich-server:{{ immich_version }}
+    networks:
+      - frontend
+      - backend
+    volumes:
+      - {{ storage_root }}/immich/library:/usr/src/app/upload:Z
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - DB_PASSWORD={{ vault_secrets.immich.db_password }}
+      - DB_USERNAME={{ vault_secrets.immich.db_username }}
+      - DB_DATABASE_NAME={{ vault_secrets.immich.db_database_name }}
+      - REDIS_HOSTNAME=immich_redis
+    depends_on:
+      - redis
+      - database
+    restart: always
+
+  immich-machine-learning:
+    container_name: immich_machine_learning
+    image: ghcr.io/immich-app/immich-machine-learning:{{ immich_version }}-openvino
+    networks:
+      - backend
+    # Inlined from hwaccel.ml.yml for OpenVINO
+    device_cgroup_rules:
+      - 'c 189:* rmw'
+    devices:
+      - /dev/dri:/dev/dri
+    volumes:
+      - model-cache:/cache:Z
+      - /dev/bus/usb:/dev/bus/usb
+    restart: always
+
+  redis:
+    container_name: immich_redis
+    image: docker.io/valkey/valkey:8-bookworm
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+    restart: always
+
+  database:
+    container_name: immich_postgres
+    image: ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0
+    networks:
+      - backend
+    environment:
+      - POSTGRES_DB={{ vault_secrets.immich.db_database_name }}
+      - POSTGRES_USER={{ vault_secrets.immich.db_username }}
+      - POSTGRES_PASSWORD={{ vault_secrets.immich.db_password }}
+      - POSTGRES_INITDB_ARGS=--data-checksums
+    volumes:
+      - {{ storage_root }}/immich/postgres:/var/lib/postgresql/data:Z
+    shm_size: 128mb
+    restart: always
+
+volumes:
+  model-cache:
+
+networks:
+  frontend:
+    external: true
+    name: homelab_backend
+  backend:
