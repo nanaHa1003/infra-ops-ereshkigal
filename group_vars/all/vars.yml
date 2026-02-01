@@ -1,3 +1,7 @@
+# System-wide configuration variables
+timezone: "Asia/Taipei"
+
+# Main data storage root directory
 storage_root: "/mnt/storage"
 
 # Map of specific subdirectories to their required UID/GID

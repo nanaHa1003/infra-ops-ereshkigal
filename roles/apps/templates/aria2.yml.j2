@@ -1,0 +1,22 @@
+services:
+  aria2:
+    # Using the maintained superng6 fork
+    image: superng6/aria2:a2b-latest
+    container_name: aria2
+    restart: unless-stopped
+    ports:
+      - "6800:6800"
+      - "6888:6888"
+      - "6888:6888/udp"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - UMASK_SET=022
+      - RPC_SECRET={{ vault_secrets.aria2.rpc_secret }}
+      - RPC_PORT=6800
+      - LISTEN_PORT=6888
+      - TZ={{ timezone }}
+    volumes:
+      # Note the :Z for Fedora SELinux support
+      - {{ storage_root }}/aria2/config:/config:Z
+      - {{ storage_root }}/aria2/downloads:/downloads:Z

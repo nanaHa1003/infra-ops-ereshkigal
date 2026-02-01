@@ -1,0 +1,27 @@
+---
+- name: Ensure stack directories exist
+  ansible.builtin.file:
+    path: "/opt/stacks/{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - aria2
+    # - immich
+
+- name: Deploy Docker Compose templates
+  ansible.builtin.template:
+    src: "{{ item }}.yml.j2"
+    dest: "/opt/stacks/{{ item }}/docker-compose.yml"
+    mode: '0644'
+  loop:
+    - aria2
+  register: compose_templates
+
+- name: Start Docker Stacks
+  community.docker.docker_compose_v2:
+    project_src: "/opt/stacks/{{ item.item }}"
+    state: present
+    pull: always
+  loop: "{{ compose_templates.results }}"
+  # Only runs the 'up' command if the template file was changed
+  when: item.changed or force_restart | default(false)
