@@ -1,0 +1,35 @@
+#!/bin/bash
+# Managed by Ansible - Changes will be overwritten
+
+DESEC_LOGIN="{{ vault_secrets.desec.login }}"
+DESEC_API_KEY="{{ vault_secrets.desec.api_token }}"
+DOMAINS=(
+    "{{ domain }}"
+{% for sub in subdomains %}
+    "{{ sub }}.{{ domain }}"
+{% endfor %}
+)
+
+DESEC_NAME_SERVER=ns1.desec.io
+DESEC_UPDATE_URL=https://update.dedyn.io/
+DESEC_UPDATE_TIMEOUT=10
+
+# Get current public IP
+IPv4=$(curl -s https://checkipv4.dedyn.io/)
+IPv6=$(curl -s https://checkipv6.dedyn.io/)
+
+for FQDN in ${DOMAINS[@]}; do
+    # Get current IP on deSEC name server
+    DESEC_IPv4=$(dig @"${DESEC_NAME_SERVER}" +short "${FQDN}" A)
+    DESEC_IPv6=$(dig @"${DESEC_NAME_SERVER}" +short "${FQDN}" AAAA)
+
+    if [ "$IPv4" != "$DESEC_IPv4" ] || [ "$IPv6" != "$DESEC_IPv6" ]; then
+        echo "Updating IP for ${FQDN}..."
+        curl -s \
+            --user "${DESEC_LOGIN}:${DESEC_API_KEY}" \
+            "${DESEC_UPDATE_URL}?hostname=${FQDN}&myipv4=${IPv4}&myipv6=${IPv6}"
+        sleep ${DESEC_UPDATE_TIMEOUT}
+    else
+        echo "IP for ${FQDN} is up to date."
+    fi
+done

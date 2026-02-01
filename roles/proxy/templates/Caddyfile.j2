@@ -1,0 +1,60 @@
+# --- Snippets ---
+(desec_tls) {
+    tls {
+        dns desec {
+            token {{ vault_secrets.desec.api_token }}
+        }
+    }
+}
+
+(authentik_auth) {
+    forward_auth http://authentik-server:9000 {
+        uri /outpost.goauthentik.io/auth/caddy
+        copy_headers X-Authentik-Username X-Authentik-Groups X-Authentik-Entitlements X-Authentik-Email X-Authentik-Name X-Authentik-Uid X-Authentik-Jwt X-Authentik-Meta-Jwks X-Authentik-Meta-Outpost X-Authentik-Meta-Provider X-Authentik-Meta-App X-Authentik-Meta-Version
+        trusted_proxies private_ranges
+    }
+}
+
+# --- Site Blocks ---
+
+# 1. Authentik (Must be public/unprotected)
+auth.{{ domain }} {
+    import desec_tls
+    reverse_proxy http://authentik-server:9000
+}
+
+# 2. Main Homepage (Protected by Authentik)
+{{ domain }} {
+    import desec_tls
+    route {
+        reverse_proxy /outpost.goauthentik.io/* http://authentik-server:9000
+        import authentik_auth
+        reverse_proxy http://homepage:3000
+    }
+}
+
+# 3. WordPress (PHP-FPM setup)
+blog.{{ domain }} {
+    import desec_tls
+    root * /apps/wordpress
+    php_fastcgi wordpress:9000 {
+        root /var/www/html
+    }
+    file_server
+}
+
+# 4. Applications (Simple Proxies)
+cook.{{ domain }} {
+    import desec_tls
+    reverse_proxy http://mealie:9000
+}
+
+tube.{{ domain }} {
+    import desec_tls
+    reverse_proxy http://tubearchivist:8000
+}
+
+photo.{{ domain }} {
+    import desec_tls
+    reverse_proxy http://immich-server:2283
+}

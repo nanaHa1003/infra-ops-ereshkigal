@@ -1,5 +1,17 @@
-# System-wide configuration variables
+# Server-wide configuration variables for Docker Compose setup
+domain: "ereshkigal.dedyn.io"
+subdomains: 
+  - "auth"
+  - "blog"
+  - "cook"
+  - "tube"
+  - "photo"
 timezone: "Asia/Taipei"
+
+# Applications
+enabled_apps:
+  - aria2
+  - immich
 
 # Main data storage root directory
 storage_root: "/mnt/storage"

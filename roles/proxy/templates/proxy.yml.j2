@@ -1,0 +1,24 @@
+name: proxy
+
+services:
+  caddy:
+    image: salbr/caddy-desec:v2.10.2
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+    networks:
+      - backend
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - /opt/stacks/proxy/Caddyfile:/etc/caddy/Caddyfile:Z
+      - {{ storage_root }}/caddy/data:/data:Z
+      - {{ storage_root }}/caddy/config:/config:Z
+      - {{ storage_root }}/wordpress/html:/apps/wordpress:Z
+
+networks:
+  backend:
+    name: homelab_backend
+    driver: bridge

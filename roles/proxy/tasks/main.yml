@@ -1,0 +1,27 @@
+---
+- name: Create Proxy directories
+  ansible.builtin.file:
+    path: "/opt/stacks/proxy"
+    state: directory
+
+- name: Deploy Caddyfile
+  ansible.builtin.template:
+    src: Caddyfile.j2
+    dest: "/opt/stacks/proxy/Caddyfile"
+    mode: '0644'
+  register: caddy_config
+
+- name: Deploy Proxy Compose
+  ansible.builtin.template:
+    src: proxy.yml.j2
+    dest: "/opt/stacks/proxy/docker-compose.yml"
+    mode: '0644'
+  register: proxy_compose
+
+- name: Start/Update Caddy
+  community.docker.docker_compose_v2:
+    project_src: "/opt/stacks/proxy"
+    state: present
+    pull: always
+  # This ensures that even if only the Caddyfile changed, we trigger an update
+  when: caddy_config.changed or proxy_compose.changed

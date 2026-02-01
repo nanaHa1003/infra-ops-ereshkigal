@@ -60,3 +60,19 @@
     mode: "{{ item.mode | default('0755') }}"
     recurse: false # We use false here for the initial creation to be safe
   loop: "{{ storage_permissions }}"
+
+# 6. Configure deSec DDNS lookup
+- name: Deploy deSEC DDNS update script
+  ansible.builtin.template:
+    src: ddupdate.sh.j2
+    dest: /usr/local/bin/ddupdate.sh
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Schedule DDNS update every 15 minutes
+  ansible.builtin.cron:
+    name: "deSEC DDNS Update"
+    minute: "*/15"
+    job: "/usr/local/bin/ddupdate.sh > /dev/null 2>&1"
+    state: present
