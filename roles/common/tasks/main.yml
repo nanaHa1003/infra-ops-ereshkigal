@@ -1,0 +1,62 @@
+---
+# 1. Remove Podman and conflicting packages
+- name: Remove Podman and related packages
+  ansible.builtin.dnf5:
+    name:
+      - podman
+      - podman-docker
+      - buildah
+      - skopeo
+    state: absent
+
+# 2. Setup Docker Repo & Install (Fedora 43 specific)
+- name: Add Docker Repository
+  ansible.builtin.get_url:
+    url: https://download.docker.com/linux/fedora/docker-ce.repo
+    dest: /etc/yum.repos.d/docker-ce.repo
+    mode: '0644'
+
+- name: Install Docker Engine
+  ansible.builtin.dnf5:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: present
+
+- name: Ensure Docker is started and enabled
+  ansible.builtin.systemd:
+    name: docker
+    state: started
+    enabled: true
+
+# 3. Setup the "Homelabber" user
+- name: Add user to docker group
+  ansible.builtin.user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: true
+
+# 4. SELinux: Allow Docker to access /mnt/storage
+- name: Set SELinux labels for storage root
+  ansible.builtin.sefcontext:
+    target: "{{ storage_root }}(/.*)?"
+    setype: container_file_t
+    state: present
+
+- name: Apply SELinux permissions (restorecon)
+  ansible.builtin.command: "restorecon -Rv {{ storage_root }}"
+  changed_when: false
+
+# 5. Directory Structure with Correct Ownership
+- name: Create base storage directories with specific UIDs
+  ansible.builtin.file:
+    path: "{{ storage_root }}/{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner | default(1000) }}"
+    group: "{{ item.group | default(1000) }}"
+    mode: "{{ item.mode | default('0755') }}"
+    recurse: false # We use false here for the initial creation to be safe
+  loop: "{{ storage_permissions }}"

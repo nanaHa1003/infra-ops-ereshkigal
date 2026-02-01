@@ -1,0 +1,13 @@
+storage_root: "/mnt/storage"
+
+# Map of specific subdirectories to their required UID/GID
+storage_permissions:
+  - { path: "wordpress/html", owner: 1000, group: 1000, mode: "0755" }
+  - { path: "wordpress/db", owner: 999, group: 999, mode: "0755" }
+  - { path: "immich/library", owner: 0, group: 0, mode: "0755" }
+  - { path: "immich/postgres", owner: 999, group: 0, mode: "0700" }
+  - { path: "authentik/postgresql", owner: 70, group: 70, mode: "0700" }
+  - { path: "authentik/redis", owner: 999, group: 1000, mode: "0755" }
+  - { path: "authentik/media", owner: 1000, group: 1000, mode: "0755" }
+  - { path: "aria2/config", owner: 1000, group: 1000, mode: "0755" }
+  - { path: "aria2/downloads", owner: 1000, group: 1000, mode: "0755" }

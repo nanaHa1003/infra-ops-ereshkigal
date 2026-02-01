@@ -1,0 +1,12 @@
+---
+- name: Proclaim the Ereshkigal Homelab
+  hosts: homelab
+  become: true
+  
+  # Load global variables
+  vars_files:
+    - group_vars/all/vars.yml
+    - group_vars/all/vault.yml
+
+  roles:
+    - common
