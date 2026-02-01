@@ -1,0 +1,28 @@
+# --- Ansible ---
+*.retry
+*.log
+.ansible_cache
+# Never commit your vault password file!
+.vault_pass
+# If you keep your inventory local/private
+inventory.ini
+
+# --- Docker ---
+.env
+# Ignore any local data directories
+**/data/
+**/config/
+**/mysql/
+**/postgres/
+
+# --- Python / ML ---
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+.env
+
+# --- OS / IDE ---
+.DS_Store
+.vscode/
+.idea/
