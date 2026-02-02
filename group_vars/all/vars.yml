@@ -12,6 +12,8 @@ timezone: "Asia/Taipei"
 enabled_apps:
   - aria2
   - immich
+  - mealie
+  - homepage
 
 # Main data storage root directory
 storage_root: "/mnt/storage"
