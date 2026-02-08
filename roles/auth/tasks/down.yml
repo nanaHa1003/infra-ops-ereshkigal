@@ -1,0 +1,12 @@
+---
+- name: Check if Auth stacks exist before stopping
+  ansible.builtin.stat:
+    path: "{{ stack_root }}/auth/docker-compose.yml"
+  register: compose_file
+
+- name: Shut down Auth stacks
+  community.docker.docker_compose_v2:
+    project_src: "{{ stack_root }}/auth"
+    state: absent  # This is the equivalent of 'docker compose down'
+    remove_volumes: false
+  when: compose_file.stat.exists

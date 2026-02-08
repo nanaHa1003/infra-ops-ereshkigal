@@ -64,6 +64,7 @@ services:
     command: worker
     networks:
       - backend
+      - socket_net
     environment:
       AUTHENTIK_SECRET_KEY: {{ vault_secrets.authentik.secret_key }}
       AUTHENTIK_REDIS__HOST: redis
@@ -86,3 +87,7 @@ networks:
   backend:
     external: true
     name: homelab_backend
+
+  socket_net:
+    external: true
+    name: socket_net

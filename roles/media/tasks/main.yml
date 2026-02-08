@@ -1,7 +1,7 @@
 ---
 - name: Ensure Media stack directories exist
   ansible.builtin.file:
-    path: "/opt/stacks/{{ item }}"
+    path: "{{ stack_root }}/{{ item }}"
     state: directory
     mode: '0755'
   loop:
@@ -11,7 +11,7 @@
 - name: Deploy Media Compose templates
   ansible.builtin.template:
     src: "{{ item }}.yml.j2"
-    dest: "/opt/stacks/{{ item }}/docker-compose.yml"
+    dest: "{{ stack_root }}/{{ item }}/docker-compose.yml"
   loop:
     - wordpress
     - tubearchivist
@@ -19,7 +19,7 @@
 
 - name: Start Media Stacks
   community.docker.docker_compose_v2:
-    project_src: "/opt/stacks/{{ item.item }}"
+    project_src: "{{ stack_root }}/{{ item.item }}"
     state: present
     pull: always
   loop: "{{ media_composes.results }}"

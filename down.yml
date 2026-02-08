@@ -1,0 +1,23 @@
+---
+- name: Gracefully shut down the Ereshkigal Homelab
+  hosts: homelab
+  become: true
+
+  tasks:
+    - name: Stop Apps & Media
+      ansible.builtin.include_role:
+        name: "{{ item }}"
+        tasks_from: down.yml
+      loop:
+        - apps
+        - media
+
+    - name: Stop Auth (Identity Provider)
+      ansible.builtin.include_role:
+        name: auth
+        tasks_from: down.yml
+
+    - name: Stop Proxy (Reverse Proxy & Networks)
+      ansible.builtin.include_role:
+        name: proxy
+        tasks_from: down.yml

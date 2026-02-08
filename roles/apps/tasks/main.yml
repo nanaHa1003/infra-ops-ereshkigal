@@ -1,7 +1,7 @@
 ---
 - name: Ensure stack directories exist
   ansible.builtin.file:
-    path: "/opt/stacks/{{ item }}"
+    path: "{{ stack_root }}/{{ item }}"
     state: directory
     mode: '0755'
   loop: "{{ enabled_apps }}"
@@ -9,14 +9,14 @@
 - name: Deploy Docker Compose templates
   ansible.builtin.template:
     src: "{{ item }}.yml.j2"
-    dest: "/opt/stacks/{{ item }}/docker-compose.yml"
+    dest: "{{ stack_root }}/{{ item }}/docker-compose.yml"
     mode: '0644'
   loop: "{{ enabled_apps }}"
   register: compose_templates
 
 - name: Start Docker Stacks
   community.docker.docker_compose_v2:
-    project_src: "/opt/stacks/{{ item.item }}"
+    project_src: "{{ stack_root }}/{{ item.item }}"
     state: present
     pull: always
   loop: "{{ compose_templates.results }}"

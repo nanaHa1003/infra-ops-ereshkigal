@@ -1,0 +1,45 @@
+name: traefik
+
+services:
+  traefik:
+    image: traefik:v3.6
+    container_name: traefik
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - backend
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # For HTTP/3 (QUIC)
+    environment:
+      - DESEC_AUTH_TOKEN={{ vault_secrets.desec.api_key }}
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - {{ storage_root }}/traefik/acme.json:/acme.json:Z
+      - /opt/stacks/proxy/dynamic:/etc/traefik/dynamic:ro:Z
+    command:
+      # --- Entrypoints ---
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
+      # --- Docker Provider ---
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=homelab_backend"
+      # --- ADDED: Enable the File Provider ---
+      - "--providers.file.directory=/etc/traefik/dynamic"
+      - "--providers.file.watch=true"
+      # --- SSL / deSEC ---
+      - "--certificatesresolvers.desec.acme.dnschallenge=true"
+      - "--certificatesresolvers.desec.acme.dnschallenge.provider=desec"
+      - "--certificatesresolvers.desec.acme.email={{ maintainer.email }}"
+      - "--certificatesresolvers.desec.acme.storage=/acme.json"
+
+networks:
+  backend:
+    external: true
+    name: homelab_backend

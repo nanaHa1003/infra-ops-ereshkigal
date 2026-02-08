@@ -50,7 +50,17 @@
   ansible.builtin.command: "restorecon -Rv {{ storage_root }}"
   changed_when: false
 
-# 5. Directory Structure with Correct Ownership
+# 5. Ensure Deploy Stack Directory Exists
+- name: Ensure stack directory exist with correct permissions
+  ansible.builtin.file:
+    path: "{{ stack_root }}"
+    state: directory
+    owner: 0
+    group: 0
+    mode: "0700"
+    recurse: false
+
+# 6. Directory Structure with Correct Ownership
 - name: Create base storage directories with specific UIDs
   ansible.builtin.file:
     path: "{{ storage_root }}/{{ item.path }}"
@@ -61,7 +71,7 @@
     recurse: false # We use false here for the initial creation to be safe
   loop: "{{ storage_permissions }}"
 
-# 6. Configure deSec DDNS lookup
+# 7. Configure deSec DDNS lookup
 - name: Deploy deSEC DDNS update script
   ansible.builtin.template:
     src: ddupdate.sh.j2
