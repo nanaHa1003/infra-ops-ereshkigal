@@ -49,6 +49,19 @@ services:
       AUTHENTIK_POSTGRESQL__USER: authentik
       AUTHENTIK_POSTGRESQL__NAME: authentik
       AUTHENTIK_POSTGRESQL__PASSWORD: {{ vault_secrets.authentik.pgpass }}
+
+      # SMTP Host Emails are sent to
+      AUTHENTIK_EMAIL__FROM: authentik@mail.ereshkigal.cc
+      AUTHENTIK_EMAIL__HOST: smtp.resend.com
+      AUTHENTIK_EMAIL__PORT: 465
+
+      AUTHENTIK_EMAIL__USERNAME: {{ vault_secrets.authentik.email_username }}
+      AUTHENTIK_EMAIL__PASSWORD: {{ vault_secrets.authentik.email_password }}
+
+      AUTHENTIK_EMAIL__USE_TLS: False
+      AUTHENTIK_EMAIL__USE_SSL: True
+
+      AUTHENTIK_EMAIL__TIMEOUT: 10
     volumes:
       - {{ storage_root }}/authentik/media:/media:Z
       - {{ storage_root }}/authentik/templates:/templates:Z
