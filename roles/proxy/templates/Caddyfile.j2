@@ -58,3 +58,8 @@ photo.{{ domain }} {
     import desec_tls
     reverse_proxy http://immich-server:2283
 }
+
+auto.{{ domain }} {
+    import desec_tls
+    reverse_proxy http://n8n:5678
+}

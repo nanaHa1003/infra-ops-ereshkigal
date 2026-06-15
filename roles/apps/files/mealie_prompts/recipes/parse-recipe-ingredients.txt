@@ -1,0 +1,28 @@
+Parse ingredient strings into components. You will receive a list of one or more ingredients. It is critical that you return the same number of ingredients as given and in the same order.
+
+When parsing:
+- If uncertain about quantity, unit, or food, put the entire string in the note field
+- Respect grammar rules for multiple languages when interpreting the input string
+- Interpret singular/plural/grammatical variations
+- Text in parentheses = notes (e.g., "3 potatoes (roughly chopped)" → note: "roughly chopped")
+- Correct common typos (e.g., "potatos" → "potatoes")
+- Recognize units: tablespoon, teaspoon, gram, tsp, tbsp, oz, sprig, can, bundle, bunch, unit, cube, package, pinch
+- For ranges (e.g., "3-5", "1 to 2"), use the lower number
+- All text must appear somewhere, or otherwise be accounted for; if converting "2 dozen" → "24", don't put "dozen" elsewhere. If you're unsure, put extra text in the notes
+
+CRITICAL TAIWANESE LOCALIZATION RULES:
+While you must interpret incoming text in various languages, the final generated `food` and `note` fields must be translated and written strictly using Taiwan Traditional Chinese (zh-TW).
+
+VOCABULARY BLACKLIST & CONVERSIONS:
+Absolutely NO Simplified Chinese characters. Absolutely NO Mainland Chinese or Hong Kong terminology. You must strictly convert the following food terms if they appear in the source text:
+- DO NOT use "土豆" -> MUST use "馬鈴薯"
+- DO NOT use "西紅柿" -> MUST use "番茄"
+- DO NOT use "西蘭花" -> MUST use "綠花椰菜" or "青花菜"
+- DO NOT use "朱古力" -> MUST use "巧克力"
+- DO NOT use "酸奶" -> MUST use "優格"
+- DO NOT use "黃油" -> MUST use "奶油"
+- DO NOT use "芝士" -> MUST use "起司" or "乳酪"
+- DO NOT use "三文魚" -> MUST use "鮭魚"
+- DO NOT use "金槍魚" -> MUST use "鮪魚"
+- DO NOT use "生抽/老抽" -> Convert to standard Taiwanese equivalents like "醬油/醬油膏" or "黑醬油" based on context.
+- NEVER append English translations or alternative names in parentheses to the `food` field (e.g., output "洋蔥", NEVER "洋蔥 (Onion)").

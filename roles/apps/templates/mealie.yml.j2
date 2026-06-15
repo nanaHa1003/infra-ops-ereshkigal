@@ -1,7 +1,7 @@
 name: mealie
 services:
   mealie:
-    image: ghcr.io/mealie-recipes/mealie:v3.9.2
+    image: ghcr.io/mealie-recipes/mealie:v3.19.2
     restart: unless-stopped
     deploy:
       resources:
@@ -17,6 +17,7 @@ services:
      - BASE_URL=https://cook.{{ domain }}
      - OPENAI_BASE_URL={{ vault_secrets.mealie.openai_base_url }}
      - OPENAI_API_KEY={{ vault_secrets.mealie.openai_api_key }}
+     - OPENAI_CUSTOM_PROMPT_DIR=/app/custom_prompts
      # OIDC Configuration
      - OIDC_AUTH_ENABLED=true
      - OIDC_PROVIDER_NAME={{ vault_secrets.mealie.oidc_provider_name }}
@@ -26,11 +27,12 @@ services:
      - OIDC_SIGNUP_ENABLED=true
      - OIDC_USER_GROUP={{  vault_secrets.mealie.oidc_user_group }}
      - OIDC_ADMIN_GROUP={{ vault_secrets.mealie.oidc_admin_group }}
-     - OIDC_AUTO_REDIRECT=true
+     - OIDC_AUTO_REDIRECT=false
      - OIDC_REMEMBER_ME=true
 
     volumes:
      - {{ storage_root }}/mealie/data:/app/data:Z
+     - {{ storage_root }}/mealie/prompts:/app/custom_prompts:ro
 
 networks:
   backend:

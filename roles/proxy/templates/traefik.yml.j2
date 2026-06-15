@@ -19,7 +19,7 @@ services:
       - /etc/localtime:/etc/localtime:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - {{ storage_root }}/traefik/acme.json:/acme.json:Z
-      - /opt/stacks/proxy/dynamic:/etc/traefik/dynamic:ro:Z
+      - {{ stack_root }}/proxy/dynamic:/etc/traefik/dynamic:ro:Z
     command:
       # --- Entrypoints ---
       - "--entrypoints.web.address=:80"

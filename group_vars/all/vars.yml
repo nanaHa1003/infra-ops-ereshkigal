@@ -6,6 +6,7 @@ maintainer:
 domain: "ereshkigal.dedyn.io"
 subdomains: 
   - "auth"
+  - "auto"
   - "blog"
   - "cook"
   - "tube"
@@ -18,6 +19,7 @@ enabled_apps:
   - immich
   - mealie
   - homepage
+  - n8n
 
 # Main data storage root directory
 stack_root: "/opt/stack"
@@ -34,9 +36,17 @@ storage_permissions:
   - { path: "immich/library", owner: 0, group: 0, mode: "0755" }
   - { path: "immich/postgres", owner: 999, group: 0, mode: "0700" }
   - { path: "mealie/data", owner: 1000, group: 1000, mode: "0755" }
+  - { path: "mealie/prompts", owner: 1000, group: 1000, mode: "0755" }
+  - { path: "n8n/data", owner: 1000, group: 1000, mode: "0755" }
+  - { path: "n8n/postgres", owner: 999, group: 999, mode: "0700" }
   - { path: "wordpress/db", owner: 999, group: 999, mode: "0755" }
   - { path: "wordpress/html", owner: 1000, group: 1000, mode: "0755" }
 
 # Application Specific Versions and Settings
 # Immich Specifics
-immich_version: "v2.5.2"
+immich_version: "v2.7.5"
+
+# Mealie AI Configurations
+mealie:
+  openai_model: "~anthropic/claude-haiku-latest"
+  openai_audio_model: "google/gemini-2.5-flash"
