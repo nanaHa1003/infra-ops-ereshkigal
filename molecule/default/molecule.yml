@@ -28,8 +28,10 @@ provisioner:
     # Point Molecule at the project roles/ directory at the repo root.
     # molecule/default/ is two levels below the repo root, so ../../roles resolves correctly.
     ANSIBLE_ROLES_PATH: $MOLECULE_SCENARIO_DIRECTORY/../../roles
-    # Forward the Podman socket so community.docker collection can resolve locally
-    DOCKER_HOST: $DOCKER_HOST
+    # DOCKER_HOST is intentionally NOT set here.
+    # - In CI (GitHub Actions): Docker is available at the default socket, no override needed.
+    # - Locally with Podman: export DOCKER_HOST before running molecule:
+    #     export DOCKER_HOST=$$(podman machine inspect --format '{{.ConnectionInfo.PodmanSocket.Path}}')
   inventory:
     group_vars:
       all:
