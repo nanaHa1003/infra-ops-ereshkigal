@@ -19,5 +19,5 @@
     project_src: "{{ stack_root }}/immich"
     state: present
     pull: always
-  when: immich_compose.changed or force_restart
+  when: immich_compose.changed or immich_force_restart
   tags: [molecule-notest]

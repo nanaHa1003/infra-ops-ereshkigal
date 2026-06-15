@@ -41,7 +41,7 @@
 
 # 4. SELinux: Allow Docker to access the storage root
 - name: Set SELinux labels for storage root
-  ansible.builtin.sefcontext:
+  community.general.sefcontext:
     target: "{{ storage_root }}(/.*)?"
     setype: container_file_t
     state: present

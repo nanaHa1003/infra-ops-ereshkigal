@@ -24,13 +24,13 @@ services:
       - {{ storage_root }}/tubearchivist/youtube:/youtube:Z
 
   elasticsearch:
-    image: {{ elasticsearch_image }}
+    image: {{ tubearchivist_elasticsearch_image }}
     restart: unless-stopped
     networks:
       - backend
     environment:
       - ELASTIC_PASSWORD={{ vault_secrets.tubearchivist.elastic_pass }}
-      - ES_JAVA_OPTS=-Xms{{ elasticsearch_heap_size }} -Xmx{{ elasticsearch_heap_size }}
+      - ES_JAVA_OPTS=-Xms{{ tubearchivist_elasticsearch_heap_size }} -Xmx{{ tubearchivist_elasticsearch_heap_size }}
       - xpack.security.enabled=true
       - discovery.type=single-node
       - path.repo=/usr/share/elasticsearch/data/snapshot
@@ -42,7 +42,7 @@ services:
       - {{ storage_root }}/tubearchivist/es:/usr/share/elasticsearch/data:Z
 
   redis:
-    image: {{ redis_image }}
+    image: {{ tubearchivist_redis_image }}
     command: --save 60 1 --loglevel warning
     restart: unless-stopped
     healthcheck:

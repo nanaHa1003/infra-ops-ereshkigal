@@ -19,5 +19,5 @@
     project_src: "{{ stack_root }}/wordpress"
     state: present
     pull: always
-  when: wordpress_compose.changed or force_restart
+  when: wordpress_compose.changed or wordpress_force_restart
   tags: [molecule-notest]

@@ -25,34 +25,94 @@ enabled_services:
 # Per-service storage directory definitions.
 # Each role declares its own dirs here so the common role can create them
 # in a single pass before any service role runs.
-# Format: { path: "relative/to/storage_root", owner: UID, group: GID, mode: "octal" }
+# Format: path relative to storage_root, owner UID, group GID, octal mode.
 storage_permissions:
   # Proxy / Caddy
-  - { path: "caddy/data",              owner: 0,    group: 0,    mode: "0755" }
-  - { path: "caddy/config",            owner: 0,    group: 0,    mode: "0755" }
+  - path: "caddy/data"
+    owner: 0
+    group: 0
+    mode: "0755"
+  - path: "caddy/config"
+    owner: 0
+    group: 0
+    mode: "0755"
   # Authentik
-  - { path: "authentik/media",         owner: 1000, group: 1000, mode: "0755" }
-  - { path: "authentik/postgresql",    owner: 70,   group: 70,   mode: "0700" }
-  - { path: "authentik/redis",         owner: 999,  group: 1000, mode: "0755" }
+  - path: "authentik/media"
+    owner: 1000
+    group: 1000
+    mode: "0755"
+  - path: "authentik/postgresql"
+    owner: 70
+    group: 70
+    mode: "0700"
+  - path: "authentik/redis"
+    owner: 999
+    group: 1000
+    mode: "0755"
   # WordPress
-  - { path: "wordpress/db",            owner: 999,  group: 999,  mode: "0755" }
-  - { path: "wordpress/html",          owner: 1000, group: 1000, mode: "0755" }
+  - path: "wordpress/db"
+    owner: 999
+    group: 999
+    mode: "0755"
+  - path: "wordpress/html"
+    owner: 1000
+    group: 1000
+    mode: "0755"
   # TubeArchivist
-  - { path: "tubearchivist/cache",     owner: 1000, group: 1000, mode: "0755" }
-  - { path: "tubearchivist/youtube",   owner: 1000, group: 1000, mode: "0755" }
-  - { path: "tubearchivist/es",        owner: 1000, group: 1000, mode: "0755" }
-  - { path: "tubearchivist/redis",     owner: 999,  group: 1000, mode: "0755" }
+  - path: "tubearchivist/cache"
+    owner: 1000
+    group: 1000
+    mode: "0755"
+  - path: "tubearchivist/youtube"
+    owner: 1000
+    group: 1000
+    mode: "0755"
+  - path: "tubearchivist/es"
+    owner: 1000
+    group: 1000
+    mode: "0755"
+  - path: "tubearchivist/redis"
+    owner: 999
+    group: 1000
+    mode: "0755"
   # Immich
-  - { path: "immich/library",          owner: 0,    group: 0,    mode: "0755" }
-  - { path: "immich/postgres",         owner: 999,  group: 0,    mode: "0700" }
+  - path: "immich/library"
+    owner: 0
+    group: 0
+    mode: "0755"
+  - path: "immich/postgres"
+    owner: 999
+    group: 0
+    mode: "0700"
   # Mealie
-  - { path: "mealie/data",             owner: 1000, group: 1000, mode: "0755" }
-  - { path: "mealie/prompts",          owner: 1000, group: 1000, mode: "0755" }
+  - path: "mealie/data"
+    owner: 1000
+    group: 1000
+    mode: "0755"
+  - path: "mealie/prompts"
+    owner: 1000
+    group: 1000
+    mode: "0755"
   # Homepage
-  - { path: "homepage/config",         owner: 1000, group: 1000, mode: "0755" }
+  - path: "homepage/config"
+    owner: 1000
+    group: 1000
+    mode: "0755"
   # n8n
-  - { path: "n8n/data",               owner: 1000, group: 1000, mode: "0755" }
-  - { path: "n8n/postgres",           owner: 999,  group: 999,  mode: "0700" }
+  - path: "n8n/data"
+    owner: 1000
+    group: 1000
+    mode: "0755"
+  - path: "n8n/postgres"
+    owner: 999
+    group: 999
+    mode: "0700"
   # Aria2
-  - { path: "aria2/config",            owner: 1000, group: 1000, mode: "0755" }
-  - { path: "aria2/downloads",         owner: 1000, group: 1000, mode: "0755" }
+  - path: "aria2/config"
+    owner: 1000
+    group: 1000
+    mode: "0755"
+  - path: "aria2/downloads"
+    owner: 1000
+    group: 1000
+    mode: "0755"

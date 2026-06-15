@@ -39,36 +39,123 @@ provisioner:
         stack_root: "/opt/stack"
         storage_root: "/mnt/storage"
         storage_permissions:
-          - { path: "caddy/data",              owner: 0,    group: 0,    mode: "0755" }
-          - { path: "caddy/config",            owner: 0,    group: 0,    mode: "0755" }
-          - { path: "authentik/media",         owner: 1000, group: 1000, mode: "0755" }
-          - { path: "authentik/postgresql",    owner: 70,   group: 70,   mode: "0700" }
-          - { path: "authentik/redis",         owner: 999,  group: 1000, mode: "0755" }
-          - { path: "wordpress/db",            owner: 999,  group: 999,  mode: "0755" }
-          - { path: "wordpress/html",          owner: 1000, group: 1000, mode: "0755" }
-          - { path: "tubearchivist/cache",     owner: 1000, group: 1000, mode: "0755" }
-          - { path: "tubearchivist/youtube",   owner: 1000, group: 1000, mode: "0755" }
-          - { path: "tubearchivist/es",        owner: 1000, group: 1000, mode: "0755" }
-          - { path: "tubearchivist/redis",     owner: 999,  group: 1000, mode: "0755" }
-          - { path: "immich/library",          owner: 0,    group: 0,    mode: "0755" }
-          - { path: "immich/postgres",         owner: 999,  group: 0,    mode: "0700" }
-          - { path: "mealie/data",             owner: 1000, group: 1000, mode: "0755" }
-          - { path: "mealie/prompts",          owner: 1000, group: 1000, mode: "0755" }
-          - { path: "homepage/config",         owner: 1000, group: 1000, mode: "0755" }
-          - { path: "n8n/data",               owner: 1000, group: 1000, mode: "0755" }
-          - { path: "n8n/postgres",           owner: 999,  group: 999,  mode: "0700" }
-          - { path: "aria2/config",            owner: 1000, group: 1000, mode: "0755" }
-          - { path: "aria2/downloads",         owner: 1000, group: 1000, mode: "0755" }
+          - path: "caddy/data"
+            owner: 0
+            group: 0
+            mode: "0755"
+          - path: "caddy/config"
+            owner: 0
+            group: 0
+            mode: "0755"
+          - path: "authentik/media"
+            owner: 1000
+            group: 1000
+            mode: "0755"
+          - path: "authentik/postgresql"
+            owner: 70
+            group: 70
+            mode: "0700"
+          - path: "authentik/redis"
+            owner: 999
+            group: 1000
+            mode: "0755"
+          - path: "wordpress/db"
+            owner: 999
+            group: 999
+            mode: "0755"
+          - path: "wordpress/html"
+            owner: 1000
+            group: 1000
+            mode: "0755"
+          - path: "tubearchivist/cache"
+            owner: 1000
+            group: 1000
+            mode: "0755"
+          - path: "tubearchivist/youtube"
+            owner: 1000
+            group: 1000
+            mode: "0755"
+          - path: "tubearchivist/es"
+            owner: 1000
+            group: 1000
+            mode: "0755"
+          - path: "tubearchivist/redis"
+            owner: 999
+            group: 1000
+            mode: "0755"
+          - path: "immich/library"
+            owner: 0
+            group: 0
+            mode: "0755"
+          - path: "immich/postgres"
+            owner: 999
+            group: 0
+            mode: "0700"
+          - path: "mealie/data"
+            owner: 1000
+            group: 1000
+            mode: "0755"
+          - path: "mealie/prompts"
+            owner: 1000
+            group: 1000
+            mode: "0755"
+          - path: "homepage/config"
+            owner: 1000
+            group: 1000
+            mode: "0755"
+          - path: "n8n/data"
+            owner: 1000
+            group: 1000
+            mode: "0755"
+          - path: "n8n/postgres"
+            owner: 999
+            group: 999
+            mode: "0700"
+          - path: "aria2/config"
+            owner: 1000
+            group: 1000
+            mode: "0755"
+          - path: "aria2/downloads"
+            owner: 1000
+            group: 1000
+            mode: "0755"
         # Stub vault_secrets — fake values sufficient for template rendering
         vault_secrets:
-          desec: { login: "test", api_token: "test-token" }
-          authentik: { pgpass: "test", secret_key: "test-key", email_username: "test", email_password: "test" }
-          wordpress: { mysql_database: "wp", mysql_user: "wp", mysql_password: "test" }
-          tubearchivist: { username: "admin", password: "test", elastic_pass: "test" }
-          immich: { db_password: "test", db_username: "immich", db_database_name: "immich" }
-          mealie: { openai_base_url: "https://openrouter.ai/api/v1", openai_api_key: "test", oidc_provider_name: "Authentik", oidc_configuration_url: "https://auth.test.example.com/application/o/mealie/.well-known/openid-configuration", oidc_client_id: "test", oidc_client_secret: "test", oidc_user_group: "mealie-users", oidc_admin_group: "mealie-admins" }
-          n8n: { postgres_user: "n8n", postgres_password: "test", postgres_db: "n8n" }
-          aria2: { rpc_secret: "test-secret" }
+          desec:
+            login: "test"
+            api_token: "test-token"
+          authentik:
+            pgpass: "test"
+            secret_key: "test-key"
+            email_username: "test"
+            email_password: "test"
+          wordpress:
+            mysql_database: "wp"
+            mysql_user: "wp"
+            mysql_password: "test"
+          tubearchivist:
+            username: "admin"
+            password: "test"
+            elastic_pass: "test"
+          immich:
+            db_password: "test"
+            db_username: "immich"
+            db_database_name: "immich"
+          mealie:
+            openai_base_url: "https://openrouter.ai/api/v1"
+            openai_api_key: "test"
+            oidc_provider_name: "Authentik"
+            oidc_configuration_url: "https://auth.test.example.com/application/o/mealie/.well-known/openid-configuration"
+            oidc_client_id: "test"
+            oidc_client_secret: "test"
+            oidc_user_group: "mealie-users"
+            oidc_admin_group: "mealie-admins"
+          n8n:
+            postgres_user: "n8n"
+            postgres_password: "test"
+            postgres_db: "n8n"
+          aria2:
+            rpc_secret: "test-secret"
         # Immich hardware devices (stub for testing — no real GPU needed)
         immich_ml_devices:
           - /dev/null:/dev/null

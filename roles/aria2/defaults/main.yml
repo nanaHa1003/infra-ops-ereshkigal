@@ -8,4 +8,4 @@ aria2_rpc_port: 6800
 aria2_bt_port: 6888
 
 # Force re-deploy even when no template changes are detected
-force_restart: false
+aria2_force_restart: false

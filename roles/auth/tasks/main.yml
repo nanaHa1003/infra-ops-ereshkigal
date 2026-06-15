@@ -19,5 +19,5 @@
     project_src: "{{ stack_root }}/auth"
     state: present
     pull: always
-  when: auth_compose.changed or force_restart
+  when: auth_compose.changed or auth_force_restart
   tags: [molecule-notest]

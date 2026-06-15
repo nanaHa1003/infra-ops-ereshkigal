@@ -2,7 +2,7 @@ name: proxy
 
 services:
   docker-ro:
-    image: {{ socket_proxy_image }}
+    image: {{ proxy_socket_proxy_image }}
     restart: unless-stopped
     privileged: true
     networks:
@@ -17,7 +17,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
 
   docker-rw:
-    image: {{ socket_proxy_image }}
+    image: {{ proxy_socket_proxy_image }}
     restart: unless-stopped
     privileged: true
     networks:

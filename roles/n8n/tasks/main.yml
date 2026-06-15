@@ -19,5 +19,5 @@
     project_src: "{{ stack_root }}/n8n"
     state: present
     pull: always
-  when: n8n_compose.changed or force_restart
+  when: n8n_compose.changed or n8n_force_restart
   tags: [molecule-notest]

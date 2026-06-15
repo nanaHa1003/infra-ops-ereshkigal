@@ -1,11 +1,8 @@
 ---
 # Default variables for the proxy role.
 
-# Caddy image with deSEC DNS plugin
-caddy_image: "salbr/caddy-desec:v2.10.2"
-
-# Socket proxy image
-socket_proxy_image: "linuxserver/socket-proxy:latest"
+proxy_caddy_image: "salbr/caddy-desec:v2.10.2"
+proxy_socket_proxy_image: "linuxserver/socket-proxy:latest"
 
 # Force re-deploy even when no template changes are detected
-force_restart: false
+proxy_force_restart: false

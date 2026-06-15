@@ -19,5 +19,5 @@
     project_src: "{{ stack_root }}/homepage"
     state: present
     pull: always
-  when: homepage_compose.changed or force_restart
+  when: homepage_compose.changed or homepage_force_restart
   tags: [molecule-notest]

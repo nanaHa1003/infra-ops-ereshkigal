@@ -18,7 +18,7 @@ services:
       - {{ storage_root }}/wordpress/html:/var/www/html:Z
 
   mariadb:
-    image: {{ mariadb_image }}
+    image: {{ wordpress_mariadb_image }}
     restart: unless-stopped
     environment:
       - MYSQL_DATABASE={{ vault_secrets.wordpress.mysql_database }}
@@ -31,7 +31,7 @@ services:
       - backend
     volumes:
       - {{ storage_root }}/wordpress/db:/var/lib/mysql:Z
-    command: "--max_allowed_packet={{ mariadb_max_allowed_packet }}"
+    command: "--max_allowed_packet={{ wordpress_mariadb_max_allowed_packet }}"
 
 networks:
   backend:

@@ -4,4 +4,4 @@
 homepage_image: "ghcr.io/gethomepage/homepage:latest"
 
 # Force re-deploy even when no template changes are detected
-force_restart: false
+homepage_force_restart: false

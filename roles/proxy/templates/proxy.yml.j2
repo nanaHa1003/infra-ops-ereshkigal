@@ -2,7 +2,7 @@ name: proxy
 
 services:
   caddy:
-    image: {{ caddy_image }}
+    image: {{ proxy_caddy_image }}
     restart: unless-stopped
     cap_add:
       - NET_ADMIN

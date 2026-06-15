@@ -27,5 +27,5 @@
     project_src: "{{ stack_root }}/mealie"
     state: present
     pull: always
-  when: mealie_compose.changed or force_restart
+  when: mealie_compose.changed or mealie_force_restart
   tags: [molecule-notest]

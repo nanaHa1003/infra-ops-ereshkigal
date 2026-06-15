@@ -19,5 +19,5 @@
     project_src: "{{ stack_root }}/aria2"
     state: present
     pull: always
-  when: aria2_compose.changed or force_restart
+  when: aria2_compose.changed or aria2_force_restart
   tags: [molecule-notest]

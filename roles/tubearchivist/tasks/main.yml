@@ -19,5 +19,5 @@
     project_src: "{{ stack_root }}/tubearchivist"
     state: present
     pull: always
-  when: tubearchivist_compose.changed or force_restart
+  when: tubearchivist_compose.changed or tubearchivist_force_restart
   tags: [molecule-notest]
