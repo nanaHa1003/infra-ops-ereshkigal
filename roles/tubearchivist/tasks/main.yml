@@ -1,0 +1,22 @@
+---
+- name: Create TubeArchivist stack directory
+  ansible.builtin.file:
+    path: "{{ stack_root }}/tubearchivist"
+    state: directory
+    owner: 0
+    group: 0
+    mode: '0755'
+
+- name: Deploy TubeArchivist Compose
+  ansible.builtin.template:
+    src: tubearchivist.yml.j2
+    dest: "{{ stack_root }}/tubearchivist/docker-compose.yml"
+    mode: '0644'
+  register: tubearchivist_compose
+
+- name: Start/Update TubeArchivist
+  community.docker.docker_compose_v2:
+    project_src: "{{ stack_root }}/tubearchivist"
+    state: present
+    pull: always
+  when: tubearchivist_compose.changed or force_restart

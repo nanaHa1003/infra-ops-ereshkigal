@@ -2,7 +2,7 @@ name: proxy
 
 services:
   caddy:
-    image: salbr/caddy-desec:v2.10.2
+    image: {{ caddy_image }}
     restart: unless-stopped
     cap_add:
       - NET_ADMIN

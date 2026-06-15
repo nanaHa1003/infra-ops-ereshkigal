@@ -1,0 +1,9 @@
+---
+# Default variables for the common role.
+# These can be overridden in group_vars or host_vars.
+
+# Docker CE repository URL (Fedora)
+docker_repo_url: "https://download.docker.com/linux/fedora/docker-ce.repo"
+
+# DDNS update interval (cron syntax)
+ddns_cron_minute: "*/15"

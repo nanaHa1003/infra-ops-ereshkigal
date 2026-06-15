@@ -1,0 +1,41 @@
+---
+# Molecule converge playbook — applies roles to the test container.
+# Tests template rendering and directory creation without needing Docker-in-Docker.
+# The docker_compose_v2 tasks are skipped in check mode (no Docker daemon available).
+
+- name: Converge
+  hosts: all
+  become: true
+
+  pre_tasks:
+    - name: Create storage root for testing
+      ansible.builtin.file:
+        path: "{{ storage_root }}"
+        state: directory
+        mode: "0755"
+
+    - name: Create stack root for testing
+      ansible.builtin.file:
+        path: "{{ stack_root }}"
+        state: directory
+        mode: "0700"
+
+    - name: Create all service storage directories
+      ansible.builtin.file:
+        path: "{{ storage_root }}/{{ item.path }}"
+        state: directory
+        owner: "{{ item.owner | default(1000) }}"
+        group: "{{ item.group | default(1000) }}"
+        mode: "{{ item.mode | default('0755') }}"
+      loop: "{{ storage_dirs }}"
+
+  roles:
+    - role: proxy
+    - role: auth
+    - role: wordpress
+    - role: tubearchivist
+    - role: immich
+    - role: mealie
+    - role: homepage
+    - role: n8n
+    - role: aria2

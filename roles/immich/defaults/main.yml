@@ -1,0 +1,13 @@
+---
+# Default variables for the immich role.
+
+immich_version: "v2.7.5"
+immich_server_image: "ghcr.io/immich-app/immich-server"
+immich_ml_image: "ghcr.io/immich-app/immich-machine-learning"
+# Use the OpenVINO variant for Intel hardware acceleration
+immich_ml_variant: "openvino"
+immich_postgres_image: "ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0"
+immich_redis_image: "docker.io/valkey/valkey:8-bookworm"
+
+# Force re-deploy even when no template changes are detected
+force_restart: false

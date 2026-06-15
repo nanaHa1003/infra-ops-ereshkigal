@@ -3,6 +3,8 @@
   ansible.builtin.file:
     path: "{{ stack_root }}/auth"
     state: directory
+    owner: 0
+    group: 0
     mode: '0755'
 
 - name: Deploy Authentik Compose
@@ -12,9 +14,9 @@
     mode: '0644'
   register: auth_compose
 
-- name: Start Authentik
+- name: Start/Update Authentik
   community.docker.docker_compose_v2:
     project_src: "{{ stack_root }}/auth"
     state: present
     pull: always
-  when: auth_compose.changed or force_restart | default(false)
+  when: auth_compose.changed or force_restart

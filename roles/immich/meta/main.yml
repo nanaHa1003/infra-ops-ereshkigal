@@ -1,0 +1,16 @@
+---
+galaxy_info:
+  author: nanaha1003
+  description: >
+    Deploys Immich photo management with machine learning (OpenVINO), PostgreSQL
+    with pgvectors/VectorChord, and Valkey cache. Supports Intel hardware
+    acceleration via host_vars device configuration.
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Fedora
+      versions:
+        - "43"
+
+dependencies:
+  - role: proxy

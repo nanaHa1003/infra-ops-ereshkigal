@@ -1,0 +1,17 @@
+---
+galaxy_info:
+  author: nanaha1003
+  description: >
+    Deploys Mealie recipe manager with Authentik OIDC integration and
+    OpenRouter AI features. Deploys custom zh-TW LLM prompts to the
+    Mealie prompt directory.
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Fedora
+      versions:
+        - "43"
+
+dependencies:
+  - role: proxy
+  - role: auth

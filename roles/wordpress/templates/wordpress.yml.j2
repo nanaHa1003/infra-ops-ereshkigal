@@ -1,0 +1,39 @@
+name: wordpress
+
+services:
+  wordpress:
+    image: {{ wordpress_image }}
+    depends_on:
+      - mariadb
+    restart: unless-stopped
+    environment:
+      - WORDPRESS_DB_HOST=mariadb
+      - WORDPRESS_DB_NAME={{ vault_secrets.wordpress.mysql_database }}
+      - WORDPRESS_DB_USER={{ vault_secrets.wordpress.mysql_user }}
+      - WORDPRESS_DB_PASSWORD={{ vault_secrets.wordpress.mysql_password }}
+    networks:
+      - backend
+    user: "1000:1000"
+    volumes:
+      - {{ storage_root }}/wordpress/html:/var/www/html:Z
+
+  mariadb:
+    image: {{ mariadb_image }}
+    restart: unless-stopped
+    environment:
+      - MYSQL_DATABASE={{ vault_secrets.wordpress.mysql_database }}
+      - MYSQL_USER={{ vault_secrets.wordpress.mysql_user }}
+      - MYSQL_PASSWORD={{ vault_secrets.wordpress.mysql_password }}
+      - MYSQL_RANDOM_ROOT_PASSWORD="1"
+      - MARIADB_AUTO_UPGRADE="1"
+      - TZ={{ timezone }}
+    networks:
+      - backend
+    volumes:
+      - {{ storage_root }}/wordpress/db:/var/lib/mysql:Z
+    command: "--max_allowed_packet={{ mariadb_max_allowed_packet }}"
+
+networks:
+  backend:
+    external: true
+    name: homelab_backend

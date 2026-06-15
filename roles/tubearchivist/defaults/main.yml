@@ -1,0 +1,12 @@
+---
+# Default variables for the tubearchivist role.
+
+tubearchivist_image: "bbilly1/tubearchivist"
+elasticsearch_image: "elasticsearch:8.18.2"
+redis_image: "redis:alpine"
+
+# Elasticsearch JVM heap size (must be set consistently)
+elasticsearch_heap_size: "1g"
+
+# Force re-deploy even when no template changes are detected
+force_restart: false

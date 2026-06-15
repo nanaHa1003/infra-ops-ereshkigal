@@ -1,0 +1,12 @@
+---
+- name: Check if Mealie stack exists before stopping
+  ansible.builtin.stat:
+    path: "{{ stack_root }}/mealie/docker-compose.yml"
+  register: compose_file
+
+- name: Shut down Mealie stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ stack_root }}/mealie"
+    state: absent
+    remove_volumes: false
+  when: compose_file.stat.exists

@@ -1,0 +1,22 @@
+---
+- name: Create Immich stack directory
+  ansible.builtin.file:
+    path: "{{ stack_root }}/immich"
+    state: directory
+    owner: 0
+    group: 0
+    mode: '0755'
+
+- name: Deploy Immich Compose
+  ansible.builtin.template:
+    src: immich.yml.j2
+    dest: "{{ stack_root }}/immich/docker-compose.yml"
+    mode: '0644'
+  register: immich_compose
+
+- name: Start/Update Immich
+  community.docker.docker_compose_v2:
+    project_src: "{{ stack_root }}/immich"
+    state: present
+    pull: always
+  when: immich_compose.changed or force_restart

@@ -1,0 +1,24 @@
+---
+- name: Check if Caddy stack exists before stopping
+  ansible.builtin.stat:
+    path: "{{ stack_root }}/proxy/docker-compose.yml"
+  register: caddy_compose_file
+
+- name: Shut down Caddy reverse proxy
+  community.docker.docker_compose_v2:
+    project_src: "{{ stack_root }}/proxy"
+    state: absent
+    remove_volumes: false
+  when: caddy_compose_file.stat.exists
+
+- name: Check if Docker socket proxy stack exists before stopping
+  ansible.builtin.stat:
+    path: "{{ stack_root }}/docker-proxy/docker-compose.yml"
+  register: socket_proxy_compose_file
+
+- name: Shut down Docker socket proxies
+  community.docker.docker_compose_v2:
+    project_src: "{{ stack_root }}/docker-proxy"
+    state: absent
+    remove_volumes: false
+  when: socket_proxy_compose_file.stat.exists

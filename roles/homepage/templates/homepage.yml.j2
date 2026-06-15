@@ -1,0 +1,22 @@
+name: homepage
+services:
+  homepage:
+    image: {{ homepage_image }}
+    networks:
+     - backend
+     - socket_net
+    environment:
+     - PUID=1000
+     - PGID=1000
+     - HOMEPAGE_ALLOWED_HOSTS={{ domain }}
+    volumes:
+     - {{ storage_root }}/homepage/config:/app/config:Z
+
+networks:
+  backend:
+    external: True
+    name: homelab_backend
+
+  socket_net:
+    external: True
+    name: socket_net

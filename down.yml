@@ -4,20 +4,33 @@
   become: true
 
   tasks:
-    - name: Stop Apps & Media
+    # Tear down in reverse dependency order
+
+    - name: Stop utility applications
       ansible.builtin.include_role:
         name: "{{ item }}"
         tasks_from: down.yml
       loop:
-        - apps
-        - media
+        - aria2
+        - n8n
+        - homepage
+        - mealie
+        - immich
 
-    - name: Stop Auth (Identity Provider)
+    - name: Stop media services
+      ansible.builtin.include_role:
+        name: "{{ item }}"
+        tasks_from: down.yml
+      loop:
+        - tubearchivist
+        - wordpress
+
+    - name: Stop identity provider
       ansible.builtin.include_role:
         name: auth
         tasks_from: down.yml
 
-    - name: Stop Proxy (Reverse Proxy & Networks)
+    - name: Stop reverse proxy and socket proxies
       ansible.builtin.include_role:
         name: proxy
         tasks_from: down.yml

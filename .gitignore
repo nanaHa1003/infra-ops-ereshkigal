@@ -4,7 +4,9 @@
 .ansible_cache
 # Never commit your vault password file!
 .vault_pass
-# If you keep your inventory local/private
+# Keep real inventory local — commit only the .example template
+inventory/hosts.ini
+# Legacy root-level inventory (no longer used)
 inventory.ini
 
 # --- Docker ---
@@ -14,6 +16,10 @@ inventory.ini
 **/config/
 **/mysql/
 **/postgres/
+
+# --- Molecule / Testing ---
+molecule/.cache/
+molecule/*/molecule.yml.bak
 
 # --- Python / ML ---
 __pycache__/

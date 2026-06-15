@@ -35,7 +35,7 @@ services:
       - {{ storage_root }}/authentik/redis:/data:Z
 
   authentik-server:
-    image: ghcr.io/goauthentik/server:2026.5.2
+    image: {{ authentik_image }}
     restart: unless-stopped
     command: server
     networks:
@@ -70,7 +70,7 @@ services:
         condition: service_healthy
 
   authentik-worker:
-    image: ghcr.io/goauthentik/server:2026.5.2
+    image: {{ authentik_image }}
     restart: unless-stopped
     command: worker
     networks:

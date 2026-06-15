@@ -1,0 +1,22 @@
+---
+- name: Create WordPress stack directory
+  ansible.builtin.file:
+    path: "{{ stack_root }}/wordpress"
+    state: directory
+    owner: 0
+    group: 0
+    mode: '0755'
+
+- name: Deploy WordPress Compose
+  ansible.builtin.template:
+    src: wordpress.yml.j2
+    dest: "{{ stack_root }}/wordpress/docker-compose.yml"
+    mode: '0644'
+  register: wordpress_compose
+
+- name: Start/Update WordPress
+  community.docker.docker_compose_v2:
+    project_src: "{{ stack_root }}/wordpress"
+    state: present
+    pull: always
+  when: wordpress_compose.changed or force_restart

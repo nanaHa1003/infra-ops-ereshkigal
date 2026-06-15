@@ -1,0 +1,12 @@
+---
+- name: Check if TubeArchivist stack exists before stopping
+  ansible.builtin.stat:
+    path: "{{ stack_root }}/tubearchivist/docker-compose.yml"
+  register: compose_file
+
+- name: Shut down TubeArchivist stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ stack_root }}/tubearchivist"
+    state: absent
+    remove_volumes: false
+  when: compose_file.stat.exists
