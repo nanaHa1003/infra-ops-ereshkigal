@@ -20,3 +20,4 @@
     state: present
     pull: always
   when: tubearchivist_compose.changed or force_restart
+  tags: [molecule-notest]

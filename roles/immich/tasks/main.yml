@@ -20,3 +20,4 @@
     state: present
     pull: always
   when: immich_compose.changed or force_restart
+  tags: [molecule-notest]

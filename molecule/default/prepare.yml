@@ -1,0 +1,23 @@
+---
+# Molecule prepare playbook — installs a docker CLI stub in the test container
+# so community.docker collection setup checks pass during Gathering Facts.
+
+- name: Prepare
+  hosts: all
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Install docker CLI stub to satisfy community.docker setup check
+      ansible.builtin.copy:
+        dest: /usr/local/bin/docker
+        mode: "0755"
+        content: |
+          #!/bin/sh
+          # Stub — satisfies community.docker collection PATH check in Molecule.
+          # The real docker daemon is not available inside the test container;
+          # docker_compose_v2 tasks are skipped because no templates change on
+          # a fresh container (registered vars are always changed=true on first run,
+          # but the module itself will fail gracefully as we only test templating).
+          echo '{"ServerVersion":"stub"}'
+          exit 0

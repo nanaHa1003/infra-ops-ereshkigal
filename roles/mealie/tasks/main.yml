@@ -28,3 +28,4 @@
     state: present
     pull: always
   when: mealie_compose.changed or force_restart
+  tags: [molecule-notest]

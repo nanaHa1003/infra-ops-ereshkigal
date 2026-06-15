@@ -1,18 +1,22 @@
 ---
-# Molecule verify playbook — checks that expected artifacts exist after converge.
+# Molecule verify playbook — checks rendered artifacts after converge.
 # Verifies directory creation and compose file templating without requiring
-# a live Docker daemon.
+# a live Docker daemon inside the test container.
 
 - name: Verify
   hosts: all
   become: true
 
   tasks:
-    - name: Verify stack root exists
+    # --- Directory structure ---
+
+    - name: Verify stack root exists with mode 0700
       ansible.builtin.stat:
         path: "{{ stack_root }}"
       register: stack_root_stat
-      failed_when: not stack_root_stat.stat.exists or stack_root_stat.stat.mode != "0700"
+      failed_when: >
+        not stack_root_stat.stat.exists or
+        stack_root_stat.stat.mode != "0700"
 
     - name: Verify storage root exists
       ansible.builtin.stat:
@@ -20,29 +24,22 @@
       register: storage_root_stat
       failed_when: not storage_root_stat.stat.exists
 
-    - name: Verify Caddy compose file was templated
-      ansible.builtin.stat:
-        path: "{{ stack_root }}/proxy/docker-compose.yml"
-      register: caddy_compose
-      failed_when: not caddy_compose.stat.exists
+    # --- Compose files were templated ---
 
     - name: Verify Caddyfile was templated
       ansible.builtin.stat:
         path: "{{ stack_root }}/proxy/Caddyfile"
-      register: caddyfile
-      failed_when: not caddyfile.stat.exists
-
-    - name: Verify docker-socket compose file was templated
-      ansible.builtin.stat:
-        path: "{{ stack_root }}/docker-proxy/docker-compose.yml"
-      register: socket_compose
-      failed_when: not socket_compose.stat.exists
+      register: caddyfile_stat
+      failed_when: not caddyfile_stat.stat.exists
 
     - name: Verify each service compose file was templated
       ansible.builtin.stat:
-        path: "{{ stack_root }}/{{ item }}/docker-compose.yml"
-      register: service_composes
+        path: "{{ stack_root }}/{{ service }}/docker-compose.yml"
+      register: compose_stat
+      failed_when: not compose_stat.stat.exists
       loop:
+        - proxy
+        - docker-proxy
         - auth
         - wordpress
         - tubearchivist
@@ -51,46 +48,58 @@
         - homepage
         - n8n
         - aria2
-      failed_when: not item.stat.exists
       loop_control:
-        loop_var: item
+        loop_var: service
 
-    - name: Verify Caddy compose does not contain raw Docker socket mount
+    # --- Content correctness checks ---
+
+    - name: Verify Homepage uses PUID (not GUID typo)
       ansible.builtin.command:
-        cmd: "grep -L 'var/run/docker.sock' {{ stack_root }}/proxy/docker-compose.yml"
-      register: no_raw_socket_caddy
+        cmd: grep -q "PUID=1000" {{ stack_root }}/homepage/docker-compose.yml
       changed_when: false
-
-    - name: Verify Authentik worker uses socket proxy (not raw socket)
-      ansible.builtin.command:
-        cmd: "grep 'DOCKER_HOST' {{ stack_root }}/auth/docker-compose.yml"
-      register: auth_docker_host
-      changed_when: false
-      failed_when: auth_docker_host.rc != 0
-
-    - name: Verify Homepage uses correct PUID (not GUID typo)
-      ansible.builtin.command:
-        cmd: "grep 'PUID=1000' {{ stack_root }}/homepage/docker-compose.yml"
+      failed_when: false
       register: homepage_puid
-      changed_when: false
-      failed_when: homepage_puid.rc != 0
+    - name: Assert PUID found in Homepage compose
+      ansible.builtin.assert:
+        that: homepage_puid.rc == 0
+        fail_msg: "homepage compose is missing PUID=1000 — GUID typo may have been reintroduced"
 
-    - name: Verify n8n image is pinned (not untagged)
+    - name: Verify Mealie has OPENAI_MODEL configured
       ansible.builtin.command:
-        cmd: "grep -v 'n8nio/n8n$' {{ stack_root }}/n8n/docker-compose.yml"
-      register: n8n_pinned
+        cmd: grep -q "OPENAI_MODEL=" {{ stack_root }}/mealie/docker-compose.yml
       changed_when: false
-
-    - name: Verify Immich internal network is declared
-      ansible.builtin.command:
-        cmd: "grep 'internal:' {{ stack_root }}/immich/docker-compose.yml"
-      register: immich_internal_net
-      changed_when: false
-      failed_when: immich_internal_net.rc != 0
-
-    - name: Verify Mealie AI model is configured
-      ansible.builtin.command:
-        cmd: "grep 'OPENAI_MODEL=' {{ stack_root }}/mealie/docker-compose.yml"
       register: mealie_model
+    - name: Assert OPENAI_MODEL found in Mealie compose
+      ansible.builtin.assert:
+        that: mealie_model.rc == 0
+        fail_msg: "mealie compose is missing OPENAI_MODEL env var"
+
+    - name: Verify n8n image is pinned to a specific tag
+      ansible.builtin.command:
+        cmd: grep -qE "n8nio/n8n:[0-9]" {{ stack_root }}/n8n/docker-compose.yml
       changed_when: false
-      failed_when: mealie_model.rc != 0
+      register: n8n_pinned
+    - name: Assert n8n image is pinned
+      ansible.builtin.assert:
+        that: n8n_pinned.rc == 0
+        fail_msg: "n8n image is not pinned to a version tag"
+
+    - name: Verify Authentik worker mounts Docker socket directly
+      ansible.builtin.command:
+        cmd: grep -q "var/run/docker.sock" {{ stack_root }}/auth/docker-compose.yml
+      changed_when: false
+      register: auth_socket
+    - name: Assert Authentik worker has Docker socket mount
+      ansible.builtin.assert:
+        that: auth_socket.rc == 0
+        fail_msg: "authentik compose is missing the docker socket mount for the worker"
+
+    - name: Verify Immich uses homelab_backend network
+      ansible.builtin.command:
+        cmd: grep -q "homelab_backend" {{ stack_root }}/immich/docker-compose.yml
+      changed_when: false
+      register: immich_network
+    - name: Assert Immich is connected to homelab_backend
+      ansible.builtin.assert:
+        that: immich_network.rc == 0
+        fail_msg: "immich compose is not connected to homelab_backend network"

@@ -25,6 +25,7 @@
     pull: always
   # This ensures that even if only the Caddyfile changed, we trigger an update
   when: caddy_config.changed or caddy_compose.changed or force_restart | default(false)
+  tags: [molecule-notest]
 
 - name: Create Docker socket proxy directory
   ansible.builtin.file:
@@ -44,3 +45,4 @@
     state: present
     pull: always
   when: socket_proxy_compose.changed or force_restart | default(false)
+  tags: [molecule-notest]
