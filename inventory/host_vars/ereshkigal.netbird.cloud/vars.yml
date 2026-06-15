@@ -2,6 +2,9 @@
 # Host-specific variables for ereshkigal (primary homelab node).
 # Override group-level vars here for hardware or topology differences.
 
+# Pin the Python interpreter to suppress autodiscovery warnings from Python 3.14
+ansible_python_interpreter: /usr/bin/python3
+
 # Hardware acceleration for Immich machine-learning (Intel OpenVINO)
 # These device paths are specific to this host's hardware.
 immich_ml_devices:

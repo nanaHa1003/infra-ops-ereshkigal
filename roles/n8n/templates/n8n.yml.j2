@@ -12,7 +12,7 @@ services:
     volumes:
       - {{ storage_root }}/n8n/postgres:/var/lib/postgresql/data:Z
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -h localhost -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      test: ['CMD-SHELL', 'pg_isready -h localhost -U {{ vault_secrets.n8n.postgres_user }} -d {{ vault_secrets.n8n.postgres_db }}']
       interval: 5s
       timeout: 5s
       retries: 10
