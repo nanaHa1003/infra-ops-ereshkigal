@@ -25,8 +25,18 @@ jobs:
           cache: pip
           cache-dependency-path: requirements.txt
 
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: pip install -r requirements.txt
+
+      - name: Install Ansible collections
+        run: ansible-galaxy collection install community.general community.docker
+
+      - name: Set up CI vault (mock plaintext secrets)
+        run: |
+          # Write a dummy vault password so ansible.cfg is satisfied
+          echo "ci-vault-password" > .vault_pass
+          # Replace the encrypted vault with the committed plaintext CI stub
+          cp inventory/group_vars/all/vault.ci.yml inventory/group_vars/all/vault.yml
 
       - name: Run ansible-lint
         run: ansible-lint
@@ -35,7 +45,11 @@ jobs:
         run: >
           ansible-playbook site.yml --syntax-check
           -i inventory/hosts.ini.example
-          -e @inventory/group_vars/all/vars.yml
+
+      - name: Syntax check — down.yml
+        run: >
+          ansible-playbook down.yml --syntax-check
+          -i inventory/hosts.ini.example
 
   molecule:
     name: Molecule idempotency
@@ -52,8 +66,16 @@ jobs:
           cache: pip
           cache-dependency-path: requirements.txt
 
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: pip install -r requirements.txt
+
+      - name: Install Ansible collections
+        run: ansible-galaxy collection install community.general community.docker
+
+      - name: Set up CI vault (mock plaintext secrets)
+        run: |
+          echo "ci-vault-password" > .vault_pass
+          cp inventory/group_vars/all/vault.ci.yml inventory/group_vars/all/vault.yml
 
       - name: Run Molecule tests
         run: molecule test
