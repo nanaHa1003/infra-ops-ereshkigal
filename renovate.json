@@ -1,6 +1,32 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended"
+  "extends": ["config:base"],
+
+  "prConcurrentLimit": 3,
+  "minimumReleaseAge": "5 days",
+  "schedule": ["every weekend"],
+
+  "packageRules": [
+    {
+      "description": "Group all minor and patch updates into a single PR to reduce noise",
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "groupName": "minor and patch updates"
+    },
+    {
+      "description": "Always open individual PRs for major version bumps — these warrant deliberate review",
+      "matchUpdateTypes": ["major"],
+      "groupName": null
+    }
+  ],
+
+  "regexManagers": [
+    {
+      "description": "All role defaults — single rule covers every *_image variable with embedded tag",
+      "fileMatch": ["^roles/.*/defaults/main\\.yml$"],
+      "matchStrings": [
+        "\\w+_image:\\s*\"(?<depName>[^:\"]+):(?<currentValue>[^\"\\n]+)\""
+      ],
+      "datasourceTemplate": "docker"
+    }
   ]
 }
