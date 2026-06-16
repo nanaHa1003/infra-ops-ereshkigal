@@ -1,0 +1,41 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:base"],
+
+  "prConcurrentLimit": 3,
+  "minimumReleaseAge": "5 days",
+  "schedule": ["every weekend"],
+
+  "packageRules": [
+    {
+      "description": "Group all minor and patch updates into a single PR to reduce noise",
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "groupName": "minor and patch updates"
+    },
+    {
+      "description": "Always open individual PRs for major version bumps — these warrant deliberate review",
+      "matchUpdateTypes": ["major"],
+      "groupName": null
+    }
+  ],
+
+  "regexManagers": [
+    {
+      "description": "Standard role defaults — image variables with embedded tag: registry/name:tag",
+      "fileMatch": ["^roles/.*/defaults/main\\.yml$"],
+      "matchStrings": [
+        "\\w+_image:\\s*\"(?<depName>[^:\"]+):(?<currentValue>[^\"\\n]+)\""
+      ],
+      "datasourceTemplate": "docker"
+    },
+    {
+      "description": "Immich shared version — server and ML images are always pinned to the same version via immich_version",
+      "fileMatch": ["^roles/immich/defaults/main\\.yml$"],
+      "matchStrings": [
+        "immich_version:\\s*\"(?<currentValue>[^\"\\n]+)\""
+      ],
+      "depNameTemplate": "ghcr.io/immich-app/immich-server",
+      "datasourceTemplate": "docker"
+    }
+  ]
+}
