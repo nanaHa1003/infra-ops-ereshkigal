@@ -2,7 +2,7 @@ name: auth
 
 services:
   postgresql:
-    image: postgres:16-alpine
+    image: {{ auth_postgres_image }}
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -d authentik -U authentik"]
@@ -20,7 +20,7 @@ services:
       POSTGRES_DB: authentik
 
   redis:
-    image: redis:alpine
+    image: {{ auth_redis_image }}
     command: --save 60 1 --loglevel warning
     restart: unless-stopped
     healthcheck:

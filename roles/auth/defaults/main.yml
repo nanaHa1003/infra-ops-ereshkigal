@@ -2,6 +2,8 @@
 # Default variables for the auth role.
 
 auth_authentik_image: "ghcr.io/goauthentik/server:2026.5.2"
+auth_postgres_image: "postgres:16-alpine"
+auth_redis_image: "redis:alpine"
 
 # SMTP configuration for Authentik email sending
 auth_smtp_host: "smtp.resend.com"

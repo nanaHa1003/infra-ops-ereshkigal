@@ -1,7 +1,7 @@
 ---
 # Default variables for the tubearchivist role.
 
-tubearchivist_image: "bbilly1/tubearchivist"
+tubearchivist_image: "bbilly1/tubearchivist:v0.5.10"
 tubearchivist_elasticsearch_image: "elasticsearch:8.18.2"
 tubearchivist_redis_image: "redis:alpine"
 tubearchivist_elasticsearch_heap_size: "1g"
