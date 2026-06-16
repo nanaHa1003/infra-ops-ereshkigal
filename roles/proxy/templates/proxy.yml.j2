@@ -2,7 +2,7 @@ name: proxy
 
 services:
   caddy:
-    image: salbr/caddy-desec:v2.10.2
+    image: {{ proxy_caddy_image }}
     restart: unless-stopped
     cap_add:
       - NET_ADMIN
@@ -13,7 +13,7 @@ services:
       - "443:443"
       - "443:443/udp"
     volumes:
-      - /opt/stacks/proxy/Caddyfile:/etc/caddy/Caddyfile:Z
+      - {{ stack_root }}/proxy/Caddyfile:/etc/caddy/Caddyfile:Z
       - {{ storage_root }}/caddy/data:/data:Z
       - {{ storage_root }}/caddy/config:/config:Z
       - {{ storage_root }}/wordpress/html:/apps/wordpress:Z

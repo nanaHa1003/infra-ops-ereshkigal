@@ -1,0 +1,12 @@
+---
+- name: Check if Homepage stack exists before stopping
+  ansible.builtin.stat:
+    path: "{{ stack_root }}/homepage/docker-compose.yml"
+  register: homepage_compose_file
+
+- name: Shut down Homepage stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ stack_root }}/homepage"
+    state: absent
+    remove_volumes: false
+  when: homepage_compose_file.stat.exists

@@ -1,0 +1,31 @@
+---
+- name: Create Mealie stack directory
+  ansible.builtin.file:
+    path: "{{ stack_root }}/mealie"
+    state: directory
+    owner: 0
+    group: 0
+    mode: '0755'
+
+- name: Deploy custom AI prompts to Mealie prompt directory
+  ansible.builtin.copy:
+    src: "mealie_prompts/"
+    dest: "{{ storage_root }}/mealie/prompts/"
+    owner: '1000'
+    group: '1000'
+    mode: '0755'
+
+- name: Deploy Mealie Compose
+  ansible.builtin.template:
+    src: mealie.yml.j2
+    dest: "{{ stack_root }}/mealie/docker-compose.yml"
+    mode: '0644'
+  register: mealie_compose
+
+- name: Start/Update Mealie
+  community.docker.docker_compose_v2:
+    project_src: "{{ stack_root }}/mealie"
+    state: present
+    pull: always
+  when: mealie_compose.changed or mealie_force_restart
+  tags: [molecule-notest]

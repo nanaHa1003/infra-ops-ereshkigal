@@ -1,0 +1,12 @@
+---
+- name: Check if Aria2 stack exists before stopping
+  ansible.builtin.stat:
+    path: "{{ stack_root }}/aria2/docker-compose.yml"
+  register: aria2_compose_file
+
+- name: Shut down Aria2 stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ stack_root }}/aria2"
+    state: absent
+    remove_volumes: false
+  when: aria2_compose_file.stat.exists

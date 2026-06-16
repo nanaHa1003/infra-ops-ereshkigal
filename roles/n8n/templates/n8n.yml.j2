@@ -1,0 +1,48 @@
+name: n8n
+services:
+  n8n-postgres:
+    image: {{ n8n_postgres_image }}
+    restart: unless-stopped
+    networks:
+      - backend
+    environment:
+      - POSTGRES_USER={{ vault_secrets.n8n.postgres_user }}
+      - POSTGRES_PASSWORD={{ vault_secrets.n8n.postgres_password }}
+      - POSTGRES_DB={{ vault_secrets.n8n.postgres_db }}
+    volumes:
+      - {{ storage_root }}/n8n/postgres:/var/lib/postgresql/data:Z
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -h localhost -U {{ vault_secrets.n8n.postgres_user }} -d {{ vault_secrets.n8n.postgres_db }}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  n8n:
+    image: {{ n8n_image }}
+    restart: unless-stopped
+    depends_on:
+      n8n-postgres:
+        condition: service_healthy
+    networks:
+      - backend
+    environment:
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=n8n-postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE={{ vault_secrets.n8n.postgres_db }}
+      - DB_POSTGRESDB_USER={{ vault_secrets.n8n.postgres_user }}
+      - DB_POSTGRESDB_PASSWORD={{ vault_secrets.n8n.postgres_password }}
+      - N8N_HOST=auto.{{ domain }}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=https
+      - NODE_ENV=production
+      - WEBHOOK_URL=https://auto.{{ domain }}/
+      - GENERIC_TIMEZONE={{ timezone }}
+      - TZ={{ timezone }}
+    volumes:
+      - {{ storage_root }}/n8n/data:/home/node/.n8n:Z
+
+networks:
+  backend:
+    external: True
+    name: homelab_backend

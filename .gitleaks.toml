@@ -1,0 +1,66 @@
+title = "Ereshkigal HomeLab gitleaks configuration"
+
+[extend]
+# Inherit all built-in detection rules and add repo-specific allowlists on top.
+useDefault = true
+
+# Disable the entropy-based generic rule — it fires on:
+#   - base64-encoded Ansible Vault ciphertext
+#   - SHA digests embedded in Docker image tags
+#   - Long YAML string values that happen to be high-entropy
+# Specific credential-type rules (AWS keys, SSH keys, etc.) remain active.
+disabledRules = ["generic-api-key"]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PATH-BASED ALLOWLISTS
+# Files excluded because their content is either ciphertext or intentional
+# plaintext stubs — never real production secrets in cleartext.
+# ─────────────────────────────────────────────────────────────────────────────
+
+[[allowlists]]
+description = "Ansible Vault encrypted files — content is AES-256 ciphertext"
+# These files begin with $ANSIBLE_VAULT; and contain only base64 ciphertext.
+# No plaintext secret can appear here.
+paths = [
+  '''(^|/)vault\.ya?ml$''',
+  '''group_vars/[^/]+/vault(\.ya?ml)?$''',
+  '''host_vars/[^/]+/vault(\.ya?ml)?$''',
+]
+
+[[allowlists]]
+description = "CI mock vault — intentional plaintext stub, not real secrets"
+# vault.ci.yml is a committed reference document with fake placeholder values
+# used only to satisfy ansible-lint/syntax-check in CI without decryption.
+paths = [
+  '''vault\.ci\.ya?ml$''',
+]
+
+[[allowlists]]
+description = "Molecule test fixtures — stub vault_secrets with fake values"
+# molecule/default/molecule.yml contains an inline inventory with fake
+# credential stubs (e.g. api_token: test-token) for template rendering tests.
+paths = [
+  '''(^|/)molecule/''',
+]
+
+[[allowlists]]
+description = "Role defaults files — image tags and config values, never real secrets"
+# defaults/main.yml contains things like image: ghcr.io/foo:v1.2.3 and
+# port numbers. No secrets should ever appear here by design.
+paths = [
+  '''.*/defaults/main\.ya?ml$''',
+]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CONTENT-BASED ALLOWLISTS
+# Patterns that look like secrets but are Jinja2 variable references.
+# ─────────────────────────────────────────────────────────────────────────────
+
+[[allowlists]]
+description = "Jinja2 template expressions — variable references, not literal secrets"
+# Matches {{ vault_secrets.foo.bar }}, {{ some_var | default('x') }}, etc.
+# These are references to variables resolved at runtime, never the secrets themselves.
+regexTarget = "match"
+regexes = [
+  '''\{\{[\s\S]*?\}\}''',
+]

@@ -9,7 +9,7 @@
       - skopeo
     state: absent
 
-# 2. Setup Docker Repo & Install (Fedora 43 specific)
+# 2. Setup Docker Repo & Install (Fedora specific)
 - name: Add Docker Repository
   ansible.builtin.get_url:
     url: https://download.docker.com/linux/fedora/docker-ce.repo
@@ -32,16 +32,16 @@
     state: started
     enabled: true
 
-# 3. Setup the "Homelabber" user
+# 3. Setup the operator user
 - name: Add user to docker group
   ansible.builtin.user:
     name: "{{ ansible_user }}"
     groups: docker
     append: true
 
-# 4. SELinux: Allow Docker to access /mnt/storage
+# 4. SELinux: Allow Docker to access the storage root
 - name: Set SELinux labels for storage root
-  ansible.builtin.sefcontext:
+  community.general.sefcontext:
     target: "{{ storage_root }}(/.*)?"
     setype: container_file_t
     state: present
@@ -50,18 +50,28 @@
   ansible.builtin.command: "restorecon -Rv {{ storage_root }}"
   changed_when: false
 
-# 5. Directory Structure with Correct Ownership
-- name: Create base storage directories with specific UIDs
+# 5. Ensure the stack root directory exists
+- name: Ensure stack root directory exists with correct permissions
+  ansible.builtin.file:
+    path: "{{ stack_root }}"
+    state: directory
+    owner: 0
+    group: 0
+    mode: "0700"
+    recurse: false
+
+# 6. Create all service storage directories in one pass
+- name: Create service storage directories with correct ownership
   ansible.builtin.file:
     path: "{{ storage_root }}/{{ item.path }}"
     state: directory
     owner: "{{ item.owner | default(1000) }}"
     group: "{{ item.group | default(1000) }}"
     mode: "{{ item.mode | default('0755') }}"
-    recurse: false # We use false here for the initial creation to be safe
+    recurse: false
   loop: "{{ storage_permissions }}"
 
-# 6. Configure deSec DDNS lookup
+# 7. Configure deSEC DDNS updates
 - name: Deploy deSEC DDNS update script
   ansible.builtin.template:
     src: ddupdate.sh.j2
@@ -70,7 +80,7 @@
     group: root
     mode: '0755'
 
-- name: Schedule DDNS update every 15 minutes
+- name: Schedule DDNS update via cron
   ansible.builtin.cron:
     name: "deSEC DDNS Update"
     minute: "*/15"

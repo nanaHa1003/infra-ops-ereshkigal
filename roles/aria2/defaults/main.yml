@@ -1,0 +1,11 @@
+---
+# Default variables for the aria2 role.
+
+aria2_image: "superng6/aria2:a2b-latest"
+
+# Ports exposed directly on the host
+aria2_rpc_port: 6800
+aria2_bt_port: 6888
+
+# Force re-deploy even when no template changes are detected
+aria2_force_restart: false

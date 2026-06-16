@@ -1,0 +1,10 @@
+---
+# Default variables for the mealie role.
+
+mealie_image: "ghcr.io/mealie-recipes/mealie:v3.19.2"
+mealie_openai_model: "~anthropic/claude-haiku-latest"
+mealie_openai_audio_model: "google/gemini-2.5-flash"
+mealie_memory_limit: "1000M"
+
+# Force re-deploy even when no template changes are detected
+mealie_force_restart: false

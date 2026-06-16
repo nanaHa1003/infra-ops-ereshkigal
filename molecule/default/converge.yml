@@ -1,0 +1,49 @@
+---
+# Molecule converge playbook — applies roles to the test container.
+#
+# What this tests:
+#   - All Jinja2 templates render without errors (no undefined variables)
+#   - Stack and storage directories are created with correct ownership
+#   - Idempotency: second run reports zero changes on directories and templates
+#
+# What this does NOT test (intentionally):
+#   - docker_compose_v2 tasks — these require a Docker daemon and are tagged
+#     `molecule-notest` to skip them. Molecule passes --skip-tags molecule-notest
+#     automatically, so all Start/Update tasks are excluded from the test run.
+
+- name: Converge
+  hosts: all
+  become: false
+
+  pre_tasks:
+    - name: Create storage root for testing
+      ansible.builtin.file:
+        path: "{{ storage_root }}"
+        state: directory
+        mode: "0755"
+
+    - name: Create stack root for testing
+      ansible.builtin.file:
+        path: "{{ stack_root }}"
+        state: directory
+        mode: "0700"
+
+    - name: Create all service storage directories
+      ansible.builtin.file:
+        path: "{{ storage_root }}/{{ item.path }}"
+        state: directory
+        owner: "{{ item.owner | default(1000) }}"
+        group: "{{ item.group | default(1000) }}"
+        mode: "{{ item.mode | default('0755') }}"
+      loop: "{{ storage_permissions }}"
+
+  roles:
+    - role: proxy
+    - role: auth
+    - role: wordpress
+    - role: tubearchivist
+    - role: immich
+    - role: mealie
+    - role: homepage
+    - role: n8n
+    - role: aria2

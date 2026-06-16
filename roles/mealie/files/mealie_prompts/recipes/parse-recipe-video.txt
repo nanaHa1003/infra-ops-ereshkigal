@@ -1,0 +1,38 @@
+You will receive a video transcript and the video's original caption text. Analyze BOTH inputs to generate a single, accurate recipe in schema.org Recipe format. Reference: https://schema.org/Recipe
+
+Do not create or make up any information. If insufficient data is found, return an empty object.
+
+- The video transcript is the primary source for instructions.
+- The caption text is the primary source for the ingredient list and title.
+- If there is a conflict (e.g., caption says "1 cup" but transcript says "1.5 cups"), trust the video transcript.
+
+CRITICAL TAIWANESE LOCALIZATION & TAXONOMY RULES:
+Regardless of the language of the transcript or captions, you must translate and output ALL fields (Title, Description, Ingredients, Categories, Tags, Instructions) strictly using Taiwan Traditional Chinese (zh-TW).
+
+1. VOCABULARY BLACKLIST & CONVERSIONS:
+Absolutely NO Simplified Chinese characters. Absolutely NO Mainland Chinese or Hong Kong terminology. You must strictly convert the following food and quality terms if they appear in the source:
+- DO NOT use "土豆" -> MUST use "馬鈴薯"
+- DO NOT use "西紅柿" -> MUST use "番茄"
+- DO NOT use "西蘭花" -> MUST use "綠花椰菜" or "青花菜"
+- DO NOT use "朱古力" -> MUST use "巧克力"
+- DO NOT use "酸奶" -> MUST use "優格"
+- DO NOT use "黃油" -> MUST use "奶油"
+- DO NOT use "芝士" -> MUST use "起司" or "乳酪"
+- DO NOT use "三文魚" -> MUST use "鮭魚"
+- DO NOT use "金槍魚" -> MUST use "鮪魚"
+- DO NOT use "質量" -> MUST use "品質"
+- DO NOT use "視頻" -> MUST use "影片"
+- DO NOT use "生抽/老抽" -> Convert to standard Taiwanese equivalents like "醬油/醬油膏" or "黑醬油" based on context.
+- NEVER append English translations or alternative names in parentheses to ingredient food names (e.g., output "洋蔥", NEVER "洋蔥 (Onion)").
+
+2. CATEGORY (分類):
+You must assign exactly ONE category to the recipe. You may ONLY choose from this exact list:
+[家常熱炒, 主食飯麵, 義麵披薩燉飯, 日式料理, 韓式料理, 南洋異國, 歐美西餐, 湯品鍋物, 常備便當, 早午餐輕食, 飲品冰品, 小吃開胃菜, 烘焙甜點, 醬料高湯]
+
+3. TAGS (標籤):
+Generate exactly 3 to 5 tags using the "前綴:值" (Prefix:Value) format. Choose ONLY from these specific options:
+- 菜系: [菜系:台式, 菜系:中式, 菜系:港式, 菜系:日式, 菜系:韓式, 菜系:美式, 菜系:義式, 菜系:法式, 菜系:東南亞, 菜系:異國]
+- 烹飪: [烹飪:烘焙, 烹飪:免烤, 烹飪:快炒, 烹飪:燉煮, 烹飪:煎烤, 烹飪:酥炸, 烹飪:涼拌, 烹飪:清蒸, 烹飪:生食, 烹飪:冷製, 烹飪:攪打]
+- 家電: [家電:大同電鍋, 家電:烤箱, 家電:氣炸鍋, 家電:微波爐, 家電:壓力鍋, 家電:瓦斯爐, 家電:攪拌機, 家電:調理機, 家電:免火]
+- 場景: [場景:早餐, 場景:午餐, 場景:晚餐, 場景:宵夜, 場景:下午茶, 場景:便當菜, 場景:常備菜, 場景:快速料理, 場景:宴客菜, 場景:一鍋到底, 場景:派對節慶]
+- 飲食: [飲食:高蛋白, 飲食:減脂低卡, 飲食:蛋奶素, 飲食:全素, 飲食:無麩質, 飲食:生酮, 飲食:低糖]

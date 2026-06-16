@@ -1,0 +1,16 @@
+---
+galaxy_info:
+  author: nanaha1003
+  description: >
+    Deploys Authentik identity provider (SSO/OIDC/LDAP) with PostgreSQL and
+    Redis backends. Requires the proxy role to have created the homelab_backend
+    and socket_net networks.
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Fedora
+      versions:
+        - "43"
+
+dependencies:
+  - role: proxy

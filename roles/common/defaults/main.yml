@@ -1,0 +1,4 @@
+---
+# Default variables for the common role.
+# Currently all values are hardcoded in tasks/main.yml for simplicity.
+# Add role-prefixed variables here if you need to make them overridable.

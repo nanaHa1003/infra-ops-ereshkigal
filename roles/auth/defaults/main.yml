@@ -1,0 +1,15 @@
+---
+# Default variables for the auth role.
+
+auth_authentik_image: "ghcr.io/goauthentik/server:2026.5.2"
+
+# SMTP configuration for Authentik email sending
+auth_smtp_host: "smtp.resend.com"
+auth_smtp_port: 465
+auth_smtp_use_tls: "False"
+auth_smtp_use_ssl: "True"
+auth_smtp_timeout: 10
+auth_email_from: "authentik@mail.ereshkigal.cc"
+
+# Force re-deploy even when no template changes are detected
+auth_force_restart: false

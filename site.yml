@@ -2,15 +2,24 @@
 - name: Proclaim the Ereshkigal Homelab
   hosts: homelab
   become: true
-  
-  # Load global variables
-  vars_files:
-    - group_vars/all/vars.yml
-    - group_vars/all/vault.yml
 
   roles:
+    # OS baseline: Docker, SELinux, storage directories, DDNS
     - common
+
+    # Infrastructure layer: reverse proxy, TLS, Docker socket proxies
     - proxy
+
+    # Identity provider: SSO / OIDC / LDAP
     - auth
-    - media
-    - apps
+
+    # Media services
+    - wordpress
+    - tubearchivist
+
+    # Productivity & utility applications
+    - immich
+    - mealie
+    - homepage
+    - n8n
+    - aria2

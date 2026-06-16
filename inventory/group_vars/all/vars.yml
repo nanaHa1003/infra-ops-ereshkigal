@@ -1,0 +1,19 @@
+---
+# Global variables — applied to every host in every group.
+# Keep this file to truly universal settings only.
+
+maintainer:
+  name: nanaha1003
+  email: yukienanaha@gmail.com
+
+# Primary domain and subdomains used for TLS and DDNS
+domain: "ereshkigal.dedyn.io"
+subdomains:
+  - "auth"
+  - "auto"
+  - "blog"
+  - "cook"
+  - "tube"
+  - "photo"
+
+timezone: "Asia/Taipei"

@@ -1,0 +1,40 @@
+---
+# CI mock vault — plaintext stub secrets for ansible-lint and syntax-check.
+# Contains no real credentials. Safe to commit.
+# Used in CI by symlinking this file over vault.yml before running lint.
+vault_secrets:
+  desec:
+    login: "ci-user@example.com"
+    api_token: "ci-token"
+  authentik:
+    pgpass: "ci-pgpass"
+    secret_key: "ci-secret-key"
+    email_username: "ci-email"
+    email_password: "ci-email-pass"
+  wordpress:
+    mysql_database: "wordpress"
+    mysql_user: "wp"
+    mysql_password: "ci-wp-pass"
+  tubearchivist:
+    username: "admin"
+    password: "ci-ta-pass"
+    elastic_pass: "ci-elastic-pass"
+  immich:
+    db_database_name: "immich"
+    db_username: "immich"
+    db_password: "ci-immich-pass"
+  mealie:
+    openai_base_url: "https://openrouter.ai/api/v1"
+    openai_api_key: "ci-openai-key"
+    oidc_provider_name: "Authentik"
+    oidc_configuration_url: "https://auth.example.com/application/o/mealie/.well-known/openid-configuration"
+    oidc_client_id: "ci-client-id"
+    oidc_client_secret: "ci-client-secret"
+    oidc_user_group: "mealie-users"
+    oidc_admin_group: "mealie-admins"
+  n8n:
+    postgres_user: "n8n"
+    postgres_db: "n8n"
+    postgres_password: "ci-n8n-pass"
+  aria2:
+    rpc_secret: "ci-rpc-secret"

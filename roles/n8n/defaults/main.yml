@@ -1,0 +1,8 @@
+---
+# Default variables for the n8n role.
+
+n8n_image: "docker.n8n.io/n8nio/n8n:1.94.1"
+n8n_postgres_image: "postgres:16-alpine"
+
+# Force re-deploy even when no template changes are detected
+n8n_force_restart: false

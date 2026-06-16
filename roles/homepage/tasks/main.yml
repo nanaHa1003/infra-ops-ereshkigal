@@ -1,0 +1,23 @@
+---
+- name: Create Homepage stack directory
+  ansible.builtin.file:
+    path: "{{ stack_root }}/homepage"
+    state: directory
+    owner: 0
+    group: 0
+    mode: '0755'
+
+- name: Deploy Homepage Compose
+  ansible.builtin.template:
+    src: homepage.yml.j2
+    dest: "{{ stack_root }}/homepage/docker-compose.yml"
+    mode: '0644'
+  register: homepage_compose
+
+- name: Start/Update Homepage
+  community.docker.docker_compose_v2:
+    project_src: "{{ stack_root }}/homepage"
+    state: present
+    pull: always
+  when: homepage_compose.changed or homepage_force_restart
+  tags: [molecule-notest]

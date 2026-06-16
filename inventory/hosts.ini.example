@@ -1,0 +1,13 @@
+# Inventory template — copy to hosts.ini and fill in your host details.
+# hosts.ini is gitignored to keep host-specific details local.
+#
+# Usage: cp inventory/hosts.ini.example inventory/hosts.ini
+
+[homelab]
+# Primary homelab node — use VPN hostname (preferred) or LAN IP
+ereshkigal.netbird.cloud ansible_user=nanaha
+# 192.168.1.101 ansible_user=nanaha
+
+# Future expansion: add more nodes to dedicated groups
+# [media_servers]
+# mediabox.netbird.cloud ansible_user=nanaha

@@ -1,0 +1,7 @@
+---
+# Default variables for the homepage role.
+
+homepage_image: "ghcr.io/gethomepage/homepage:latest"
+
+# Force re-deploy even when no template changes are detected
+homepage_force_restart: false

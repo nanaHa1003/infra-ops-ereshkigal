@@ -1,0 +1,15 @@
+---
+galaxy_info:
+  author: nanaha1003
+  description: >
+    Deploys the Caddy reverse proxy (with deSEC DNS-01 TLS) and Docker socket
+    proxies (read-only for Homepage, read-write for Authentik worker).
+    Creates the shared homelab_backend and socket_net Docker networks.
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Fedora
+      versions:
+        - "43"
+
+dependencies: []

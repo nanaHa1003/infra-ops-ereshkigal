@@ -1,0 +1,16 @@
+---
+galaxy_info:
+  author: nanaha1003
+  description: >
+    Deploys the Homepage dashboard with Docker widget integration via the
+    read-only socket proxy. Protected by Authentik forward-auth via Caddy.
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Fedora
+      versions:
+        - "43"
+
+dependencies:
+  - role: proxy
+  - role: auth

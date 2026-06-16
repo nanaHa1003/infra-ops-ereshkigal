@@ -1,0 +1,15 @@
+---
+galaxy_info:
+  author: nanaha1003
+  description: >
+    Deploys Aria2 download daemon. Exposes RPC and BitTorrent ports directly
+    on the host. Not connected to the homelab_backend network (intentional —
+    no reverse proxy needed for this service).
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Fedora
+      versions:
+        - "43"
+
+dependencies: []

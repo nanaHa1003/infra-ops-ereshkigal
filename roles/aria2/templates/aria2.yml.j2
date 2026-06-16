@@ -1,0 +1,22 @@
+name: aria2
+
+services:
+  aria2:
+    image: {{ aria2_image }}
+    container_name: aria2
+    restart: unless-stopped
+    ports:
+      - "{{ aria2_rpc_port }}:{{ aria2_rpc_port }}"
+      - "{{ aria2_bt_port }}:{{ aria2_bt_port }}"
+      - "{{ aria2_bt_port }}:{{ aria2_bt_port }}/udp"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - UMASK_SET=022
+      - RPC_SECRET={{ vault_secrets.aria2.rpc_secret }}
+      - RPC_PORT={{ aria2_rpc_port }}
+      - LISTEN_PORT={{ aria2_bt_port }}
+      - TZ={{ timezone }}
+    volumes:
+      - {{ storage_root }}/aria2/config:/config:Z
+      - {{ storage_root }}/aria2/downloads:/downloads:Z

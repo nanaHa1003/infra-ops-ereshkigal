@@ -1,0 +1,23 @@
+---
+- name: Create n8n stack directory
+  ansible.builtin.file:
+    path: "{{ stack_root }}/n8n"
+    state: directory
+    owner: 0
+    group: 0
+    mode: '0755'
+
+- name: Deploy n8n Compose
+  ansible.builtin.template:
+    src: n8n.yml.j2
+    dest: "{{ stack_root }}/n8n/docker-compose.yml"
+    mode: '0644'
+  register: n8n_compose
+
+- name: Start/Update n8n
+  community.docker.docker_compose_v2:
+    project_src: "{{ stack_root }}/n8n"
+    state: present
+    pull: always
+  when: n8n_compose.changed or n8n_force_restart
+  tags: [molecule-notest]

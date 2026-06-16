@@ -1,0 +1,39 @@
+name: proxy
+
+services:
+  docker-ro:
+    image: {{ proxy_socket_proxy_image }}
+    restart: unless-stopped
+    privileged: true
+    networks:
+      - socket_net
+    environment:
+      - EVENTS=1
+      - PING=1
+      - VERSION=1
+      - CONTAINERS=1
+      - TZ={{ timezone }} 
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+  docker-rw:
+    image: {{ proxy_socket_proxy_image }}
+    restart: unless-stopped
+    privileged: true
+    networks:
+      - socket_net
+    environment:
+      - EVENTS=1
+      - PING=1
+      - VERSION=1
+      - CONTAINERS=1
+      - IMAGES=1
+      - INFO=1
+      - TZ={{ timezone }} 
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:z
+
+networks:
+  socket_net:
+    name: socket_net
+    driver: bridge

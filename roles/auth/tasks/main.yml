@@ -1,20 +1,23 @@
 ---
 - name: Create Authentik stack directory
   ansible.builtin.file:
-    path: "/opt/stacks/auth"
+    path: "{{ stack_root }}/auth"
     state: directory
+    owner: 0
+    group: 0
     mode: '0755'
 
 - name: Deploy Authentik Compose
   ansible.builtin.template:
     src: auth.yml.j2
-    dest: "/opt/stacks/auth/docker-compose.yml"
+    dest: "{{ stack_root }}/auth/docker-compose.yml"
     mode: '0644'
   register: auth_compose
 
-- name: Start Authentik
+- name: Start/Update Authentik
   community.docker.docker_compose_v2:
-    project_src: "/opt/stacks/auth"
+    project_src: "{{ stack_root }}/auth"
     state: present
     pull: always
-  when: auth_compose.changed or force_restart | default(false)
+  when: auth_compose.changed or auth_force_restart
+  tags: [molecule-notest]

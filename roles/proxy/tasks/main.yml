@@ -1,27 +1,50 @@
 ---
-- name: Create Proxy directories
+- name: Create Caddy stack directory
   ansible.builtin.file:
-    path: "/opt/stacks/proxy"
+    path: "{{ stack_root }}/proxy"
     state: directory
+    mode: "0755"
 
 - name: Deploy Caddyfile
   ansible.builtin.template:
     src: Caddyfile.j2
-    dest: "/opt/stacks/proxy/Caddyfile"
+    dest: "{{ stack_root }}/proxy/Caddyfile"
     mode: '0644'
-  register: caddy_config
+  register: proxy_caddy_config
 
-- name: Deploy Proxy Compose
+- name: Deploy Caddy Compose
   ansible.builtin.template:
     src: proxy.yml.j2
-    dest: "/opt/stacks/proxy/docker-compose.yml"
+    dest: "{{ stack_root }}/proxy/docker-compose.yml"
     mode: '0644'
-  register: proxy_compose
+  register: proxy_caddy_compose
 
-- name: Start/Update Caddy
+- name: Start/Update Caddy reverse proxy
   community.docker.docker_compose_v2:
-    project_src: "/opt/stacks/proxy"
+    project_src: "{{ stack_root }}/proxy"
     state: present
     pull: always
   # This ensures that even if only the Caddyfile changed, we trigger an update
-  when: caddy_config.changed or proxy_compose.changed
+  when: proxy_caddy_config.changed or proxy_caddy_compose.changed or proxy_force_restart
+  tags: [molecule-notest]
+
+- name: Create Docker socket proxy directory
+  ansible.builtin.file:
+    path: "{{ stack_root }}/docker-proxy"
+    state: directory
+    mode: "0755"
+
+- name: Deploy Docker socket proxy Compose
+  ansible.builtin.template:
+    src: docker-socket.yml.j2
+    dest: "{{ stack_root }}/docker-proxy/docker-compose.yml"
+    mode: '0644'
+  register: proxy_socket_compose
+
+- name: Start/Update Docker socket proxies
+  community.docker.docker_compose_v2:
+    project_src: "{{ stack_root }}/docker-proxy"
+    state: present
+    pull: always
+  when: proxy_socket_compose.changed or proxy_force_restart
+  tags: [molecule-notest]

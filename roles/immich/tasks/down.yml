@@ -1,0 +1,12 @@
+---
+- name: Check if Immich stack exists before stopping
+  ansible.builtin.stat:
+    path: "{{ stack_root }}/immich/docker-compose.yml"
+  register: immich_compose_file
+
+- name: Shut down Immich stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ stack_root }}/immich"
+    state: absent
+    remove_volumes: false
+  when: immich_compose_file.stat.exists

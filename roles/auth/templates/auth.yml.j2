@@ -35,13 +35,11 @@ services:
       - {{ storage_root }}/authentik/redis:/data:Z
 
   authentik-server:
-    image: ghcr.io/goauthentik/server:2025.12.1
+    image: {{ auth_authentik_image }}
     restart: unless-stopped
     command: server
     networks:
       - backend
-    ports:
-      - "389:389"
     environment:
       AUTHENTIK_SECRET_KEY: {{ vault_secrets.authentik.secret_key }}
       AUTHENTIK_REDIS__HOST: redis
@@ -49,6 +47,19 @@ services:
       AUTHENTIK_POSTGRESQL__USER: authentik
       AUTHENTIK_POSTGRESQL__NAME: authentik
       AUTHENTIK_POSTGRESQL__PASSWORD: {{ vault_secrets.authentik.pgpass }}
+
+      # SMTP Host Emails are sent to
+      AUTHENTIK_EMAIL__FROM: authentik@mail.ereshkigal.cc
+      AUTHENTIK_EMAIL__HOST: smtp.resend.com
+      AUTHENTIK_EMAIL__PORT: 465
+
+      AUTHENTIK_EMAIL__USERNAME: {{ vault_secrets.authentik.email_username }}
+      AUTHENTIK_EMAIL__PASSWORD: {{ vault_secrets.authentik.email_password }}
+
+      AUTHENTIK_EMAIL__USE_TLS: False
+      AUTHENTIK_EMAIL__USE_SSL: True
+
+      AUTHENTIK_EMAIL__TIMEOUT: 10
     volumes:
       - {{ storage_root }}/authentik/media:/media:Z
       - {{ storage_root }}/authentik/templates:/templates:Z
@@ -59,11 +70,12 @@ services:
         condition: service_healthy
 
   authentik-worker:
-    image: ghcr.io/goauthentik/server:2025.12.1
+    image: {{ auth_authentik_image }}
     restart: unless-stopped
     command: worker
     networks:
       - backend
+      - socket_net
     environment:
       AUTHENTIK_SECRET_KEY: {{ vault_secrets.authentik.secret_key }}
       AUTHENTIK_REDIS__HOST: redis
@@ -86,3 +98,7 @@ networks:
   backend:
     external: true
     name: homelab_backend
+
+  socket_net:
+    external: true
+    name: socket_net

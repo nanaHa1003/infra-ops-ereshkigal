@@ -1,0 +1,15 @@
+---
+galaxy_info:
+  author: nanaha1003
+  description: >
+    OS baseline for the Ereshkigal homelab: removes Podman, installs Docker CE,
+    configures SELinux container labels, creates storage directory layout,
+    and sets up deSEC DDNS updates.
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Fedora
+      versions:
+        - "43"
+
+dependencies: []

@@ -1,0 +1,20 @@
+# ansible-lint configuration
+# https://ansible.readthedocs.io/projects/lint/configuring/
+
+profile: production
+
+# Paths to exclude from linting
+exclude_paths:
+  - .git/
+  - .venv/
+  - molecule/
+
+# Warn-only rules (don't fail CI, but surface them)
+warn_list:
+  - experimental
+  - no-changed-when
+
+# Skip rules that don't apply to this homelab context
+skip_list:
+  # We intentionally use 'latest' tags for some images where pinning is impractical
+  - yaml[line-length]

@@ -1,0 +1,9 @@
+---
+# Default variables for the wordpress role.
+
+wordpress_image: "wordpress:fpm-alpine"
+wordpress_mariadb_image: "mariadb:lts"
+wordpress_mariadb_max_allowed_packet: "67108864"
+
+# Force re-deploy even when no template changes are detected
+wordpress_force_restart: false
