@@ -106,6 +106,34 @@ roles/<name>/
 
 ---
 
+## Developer Setup
+
+Install the pre-commit hook to catch credential leaks locally before they
+reach CI. This is a one-time step after cloning the repo.
+
+```bash
+pip install pre-commit   # or: brew install pre-commit
+pre-commit install
+```
+
+From that point on, gitleaks runs automatically on every `git commit`,
+scanning the staged diff against the rules in `.gitleaks.toml`.
+
+**Run manually against all files:**
+
+```bash
+pre-commit run --all-files
+```
+
+**Skip the hook for a single commit** (e.g. after deliberately revoking a
+leaked credential before the rotation is complete):
+
+```bash
+SKIP=gitleaks git commit -m "message"
+```
+
+---
+
 ## Usage
 
 ### Deploy
