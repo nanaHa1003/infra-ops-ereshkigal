@@ -52,9 +52,24 @@ jobs:
 
       - name: Set up CI vault (mock plaintext secrets)
         run: |
-          # Write a dummy vault password so ansible.cfg is satisfied
-          echo "ci-vault-password" > .vault_pass
-          # Replace the encrypted vault with the committed plaintext CI stub
+          # SAFETY: the dummy vault password is written to /tmp, never to .vault_pass
+          # in the repo root. Writing to .vault_pass would clobber a developer's real
+          # password file if this step were run locally. ANSIBLE_VAULT_PASSWORD_FILE
+          # takes precedence over vault_password_file in ansible.cfg at runtime,
+          # so ansible.cfg does not need to change.
+          #
+          # Guard: GitHub Actions always sets CI=true. If someone runs this step
+          # manually in a local shell (without CI=true), abort immediately.
+          if [ "${CI}" != "true" ]; then
+            echo "ERROR: This step must only run in CI. Do not execute it locally."
+            echo "       It would overwrite your local vault.yml with plaintext stubs."
+            exit 1
+          fi
+          echo "ci-vault-password" > /tmp/ci-vault-pass
+          echo "ANSIBLE_VAULT_PASSWORD_FILE=/tmp/ci-vault-pass" >> "$GITHUB_ENV"
+          # Replace the encrypted vault with the committed plaintext CI stub.
+          # Safe here because CI always operates on a fresh checkout with no
+          # real secrets present.
           cp inventory/group_vars/all/vault.ci.yml inventory/group_vars/all/vault.yml
 
       - name: Run ansible-lint
@@ -93,7 +108,14 @@ jobs:
 
       - name: Set up CI vault (mock plaintext secrets)
         run: |
-          echo "ci-vault-password" > .vault_pass
+          # SAFETY: see comment in the lint job above. Same rules apply here.
+          if [ "${CI}" != "true" ]; then
+            echo "ERROR: This step must only run in CI. Do not execute it locally."
+            echo "       It would overwrite your local vault.yml with plaintext stubs."
+            exit 1
+          fi
+          echo "ci-vault-password" > /tmp/ci-vault-pass
+          echo "ANSIBLE_VAULT_PASSWORD_FILE=/tmp/ci-vault-pass" >> "$GITHUB_ENV"
           cp inventory/group_vars/all/vault.ci.yml inventory/group_vars/all/vault.yml
 
       - name: Run Molecule tests
