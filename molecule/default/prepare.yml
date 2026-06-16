@@ -4,7 +4,7 @@
 
 - name: Prepare
   hosts: all
-  become: true
+  become: false
   gather_facts: false
 
   tasks:

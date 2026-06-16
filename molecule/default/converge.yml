@@ -13,7 +13,7 @@
 
 - name: Converge
   hosts: all
-  become: true
+  become: false
 
   pre_tasks:
     - name: Create storage root for testing

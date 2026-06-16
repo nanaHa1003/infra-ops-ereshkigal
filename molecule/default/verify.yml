@@ -5,7 +5,7 @@
 
 - name: Verify
   hosts: all
-  become: true
+  become: false
 
   tasks:
     # --- Directory structure ---
