@@ -21,6 +21,7 @@ platforms:
     command: /sbin/init
     volumes:
       - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
 
 provisioner:
   name: ansible
@@ -32,11 +33,6 @@ provisioner:
     # - In CI (GitHub Actions): Docker is available at the default socket, no override needed.
     # - Locally with Podman: export DOCKER_HOST before running molecule:
     #     export DOCKER_HOST=$$(podman machine inspect --format '{{.ConnectionInfo.PodmanSocket.Path}}')
-  config_options:
-    defaults:
-      # Use /tmp for remote temp files — avoids ~/.ansible/tmp resolution
-      # failures in containers where HOME may not be set correctly.
-      remote_tmp: /tmp/ansible-tmp
   inventory:
     group_vars:
       all:
