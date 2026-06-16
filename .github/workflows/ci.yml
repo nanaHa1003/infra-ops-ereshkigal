@@ -14,6 +14,11 @@ jobs:
   secret-scan:
     name: Secret scan
     runs-on: ubuntu-latest
+    permissions:
+      # Required by gitleaks-action to read PR commit list when triggered
+      # by a pull_request event (GET /repos/.../pulls/:number/commits).
+      contents: read
+      pull-requests: read
     steps:
       - name: Checkout repository (full history)
         uses: actions/checkout@v4
