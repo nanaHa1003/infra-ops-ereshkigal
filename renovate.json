@@ -21,20 +21,11 @@
 
   "regexManagers": [
     {
-      "description": "Standard role defaults — image variables with embedded tag: registry/name:tag",
+      "description": "All role defaults — single rule covers every *_image variable with embedded tag",
       "fileMatch": ["^roles/.*/defaults/main\\.yml$"],
       "matchStrings": [
         "\\w+_image:\\s*\"(?<depName>[^:\"]+):(?<currentValue>[^\"\\n]+)\""
       ],
-      "datasourceTemplate": "docker"
-    },
-    {
-      "description": "Immich shared version — server and ML images are always pinned to the same version via immich_version",
-      "fileMatch": ["^roles/immich/defaults/main\\.yml$"],
-      "matchStrings": [
-        "immich_version:\\s*\"(?<currentValue>[^\"\\n]+)\""
-      ],
-      "depNameTemplate": "ghcr.io/immich-app/immich-server",
       "datasourceTemplate": "docker"
     }
   ]
