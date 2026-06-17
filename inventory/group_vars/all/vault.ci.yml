@@ -15,10 +15,6 @@ vault_secrets:
     mysql_database: "wordpress"
     mysql_user: "wp"
     mysql_password: "ci-wp-pass"
-  tubearchivist:
-    username: "admin"
-    password: "ci-ta-pass"
-    elastic_pass: "ci-elastic-pass"
   immich:
     db_database_name: "immich"
     db_username: "immich"

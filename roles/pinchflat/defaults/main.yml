@@ -1,0 +1,7 @@
+---
+# Default variables for the pinchflat role.
+
+pinchflat_image: "ghcr.io/communitymaintained/pinchflat:latest"
+
+# Force re-deploy even when no template changes are detected
+pinchflat_force_restart: false

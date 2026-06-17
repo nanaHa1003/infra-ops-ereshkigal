@@ -1,0 +1,16 @@
+---
+galaxy_info:
+  author: nanaha1003
+  description: >
+    Deploys Pinchflat, a self-hosted YouTube media manager built on yt-dlp.
+    Single-container, no external dependencies. Community-maintained fork of
+    kieraneglin/pinchflat.
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Fedora
+      versions:
+        - "43"
+
+dependencies:
+  - role: proxy

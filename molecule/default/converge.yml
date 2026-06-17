@@ -41,7 +41,7 @@
     - role: proxy
     - role: auth
     - role: wordpress
-    - role: tubearchivist
+    - role: pinchflat
     - role: immich
     - role: mealie
     - role: homepage

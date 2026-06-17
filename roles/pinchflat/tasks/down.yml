@@ -1,0 +1,12 @@
+---
+- name: Check if Pinchflat stack exists before stopping
+  ansible.builtin.stat:
+    path: "{{ stack_root }}/pinchflat/docker-compose.yml"
+  register: pinchflat_compose_file
+
+- name: Shut down Pinchflat stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ stack_root }}/pinchflat"
+    state: absent
+    remove_volumes: false
+  when: pinchflat_compose_file.stat.exists

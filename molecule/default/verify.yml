@@ -42,7 +42,7 @@
         - docker-proxy
         - auth
         - wordpress
-        - tubearchivist
+        - pinchflat
         - immich
         - mealie
         - homepage

@@ -15,7 +15,7 @@ enabled_services:
   - proxy
   - auth
   - wordpress
-  - tubearchivist
+  - pinchflat
   - immich
   - mealie
   - homepage
@@ -58,21 +58,13 @@ storage_permissions:
     owner: 1000
     group: 1000
     mode: "0755"
-  # TubeArchivist
-  - path: "tubearchivist/cache"
+  # Pinchflat
+  - path: "pinchflat/config"
     owner: 1000
     group: 1000
     mode: "0755"
-  - path: "tubearchivist/youtube"
+  - path: "pinchflat/downloads"
     owner: 1000
-    group: 1000
-    mode: "0755"
-  - path: "tubearchivist/es"
-    owner: 1000
-    group: 1000
-    mode: "0755"
-  - path: "tubearchivist/redis"
-    owner: 999
     group: 1000
     mode: "0755"
   # Immich

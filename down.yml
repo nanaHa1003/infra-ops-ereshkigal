@@ -22,7 +22,7 @@
         name: "{{ item }}"
         tasks_from: down.yml
       loop:
-        - tubearchivist
+        - pinchflat
         - wordpress
 
     - name: Stop identity provider

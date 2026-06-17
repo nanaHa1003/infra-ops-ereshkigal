@@ -1,0 +1,23 @@
+---
+- name: Create Pinchflat stack directory
+  ansible.builtin.file:
+    path: "{{ stack_root }}/pinchflat"
+    state: directory
+    owner: 0
+    group: 0
+    mode: '0755'
+
+- name: Deploy Pinchflat Compose
+  ansible.builtin.template:
+    src: pinchflat.yml.j2
+    dest: "{{ stack_root }}/pinchflat/docker-compose.yml"
+    mode: '0644'
+  register: pinchflat_compose
+
+- name: Start/Update Pinchflat
+  community.docker.docker_compose_v2:
+    project_src: "{{ stack_root }}/pinchflat"
+    state: present
+    pull: always
+  when: pinchflat_compose.changed or pinchflat_force_restart
+  tags: [molecule-notest]

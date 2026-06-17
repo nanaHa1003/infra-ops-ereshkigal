@@ -1,0 +1,21 @@
+name: pinchflat
+
+services:
+  pinchflat:
+    image: {{ pinchflat_image }}
+    restart: unless-stopped
+    networks:
+      - backend
+    environment:
+      - TZ={{ timezone }}
+      - LOG_LEVEL=info
+      - BASIC_AUTH_USERNAME={{ vault_secrets.pinchflat.username }}
+      - BASIC_AUTH_PASSWORD={{ vault_secrets.pinchflat.password }}
+    volumes:
+      - {{ storage_root }}/pinchflat/config:/config:Z
+      - {{ storage_root }}/pinchflat/downloads:/downloads:Z
+
+networks:
+  backend:
+    external: true
+    name: homelab_backend

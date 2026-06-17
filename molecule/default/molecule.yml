@@ -70,20 +70,12 @@ provisioner:
             owner: 1000
             group: 1000
             mode: "0755"
-          - path: "tubearchivist/cache"
+          - path: "pinchflat/config"
             owner: 1000
             group: 1000
             mode: "0755"
-          - path: "tubearchivist/youtube"
+          - path: "pinchflat/downloads"
             owner: 1000
-            group: 1000
-            mode: "0755"
-          - path: "tubearchivist/es"
-            owner: 1000
-            group: 1000
-            mode: "0755"
-          - path: "tubearchivist/redis"
-            owner: 999
             group: 1000
             mode: "0755"
           - path: "immich/library"
@@ -136,10 +128,6 @@ provisioner:
             mysql_database: "wp"
             mysql_user: "wp"
             mysql_password: "test"
-          tubearchivist:
-            username: "admin"
-            password: "test"
-            elastic_pass: "test"
           immich:
             db_password: "test"
             db_username: "immich"

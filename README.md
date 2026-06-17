@@ -47,7 +47,8 @@ optimized for **Fedora 43** running on a Netbird mesh network.
 │   ├── proxy/           # Caddy reverse proxy + Docker socket proxies
 │   ├── auth/            # Authentik (PostgreSQL + Redis + server + worker)
 │   ├── wordpress/       # WordPress FPM + MariaDB
-│   ├── tubearchivist/   # TubeArchivist + Elasticsearch + Redis
+│   ├── pinchflat/       # Pinchflat YouTube media manager
+│   ├── tubearchivist/   # TubeArchivist (disabled — kept for reference)
 │   ├── immich/          # Immich + ML (OpenVINO) + PostgreSQL + Valkey
 │   ├── mealie/          # Mealie recipe manager + AI prompts
 │   ├── homepage/        # Homepage dashboard
@@ -89,7 +90,7 @@ roles/<name>/
 | Docker socket proxies | `proxy` | — |
 | Authentik SSO | `auth` | `auth.ereshkigal.dedyn.io` |
 | WordPress blog | `wordpress` | `blog.ereshkigal.dedyn.io` |
-| TubeArchivist | `tubearchivist` | `tube.ereshkigal.dedyn.io` |
+| Pinchflat YouTube manager | `pinchflat` | `tube.ereshkigal.dedyn.io` |
 | Immich photos | `immich` | `photo.ereshkigal.dedyn.io` |
 | Mealie recipes | `mealie` | `cook.ereshkigal.dedyn.io` |
 | Homepage dashboard | `homepage` | `ereshkigal.dedyn.io` |
@@ -190,7 +191,6 @@ vault_secrets:
   desec:         { login, api_token }
   authentik:     { pgpass, secret_key, email_username, email_password }
   wordpress:     { mysql_database, mysql_user, mysql_password }
-  tubearchivist: { username, password, elastic_pass }
   immich:        { db_database_name, db_username, db_password }
   mealie:        { openai_base_url, openai_api_key,
                    oidc_provider_name, oidc_configuration_url,
