@@ -34,3 +34,6 @@ vault_secrets:
     postgres_password: "ci-n8n-pass"
   aria2:
     rpc_secret: "ci-rpc-secret"
+  pinchflat:
+    username: "ci-pinchflat-user"
+    password: "ci-pinchflat-pass"

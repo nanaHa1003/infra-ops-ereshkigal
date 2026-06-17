@@ -198,6 +198,7 @@ vault_secrets:
                    oidc_user_group, oidc_admin_group }
   n8n:           { postgres_user, postgres_db, postgres_password }
   aria2:         { rpc_secret }
+  pinchflat:     { username, password }
 ```
 
 ---

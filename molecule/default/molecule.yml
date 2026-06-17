@@ -147,6 +147,9 @@ provisioner:
             postgres_db: "n8n"
           aria2:
             rpc_secret: "test-secret"
+          pinchflat:
+            username: "test-user"
+            password: "test-pass"
         # Immich hardware devices (stub for testing — no real GPU needed)
         immich_ml_devices:
           - /dev/null:/dev/null
