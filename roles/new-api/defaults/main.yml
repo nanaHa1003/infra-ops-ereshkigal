@@ -1,0 +1,15 @@
+---
+# Default variables for the new-api role.
+
+new_api:
+  image: "calciumion/new-api:latest"
+
+  # Redis configurations
+  redis:
+    image: "valkey/valkey:9.1-alpine"
+    # redis password in vault
+
+  # Postgres configurations
+  postgres:
+    image: "postgres:18-alpine"
+    # postgres password in vault

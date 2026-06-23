@@ -9,6 +9,7 @@
 
     # Infrastructure layer: reverse proxy, TLS, Docker socket proxies
     - proxy
+    - new-api
 
     # Identity provider: SSO / OIDC / LDAP
     - auth

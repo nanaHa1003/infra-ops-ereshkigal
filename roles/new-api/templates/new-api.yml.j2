@@ -1,0 +1,58 @@
+services:
+  new-api:
+    image: calciumion/new-api:latest
+    restart: always
+    command: --log-dir /app/logs
+    ports:
+      - "3456:3000"
+    volumes:
+      - {{ storage_root }}/new-api/data:/data:Z
+      - {{ storage_root }}/new-api/logs:/app/logs:Z
+    environment:
+      - SQL_DSN=postgresql://root:{{ vault_secrets.new_api.postgres.password }}@postgres:5432/new-api
+      - REDIS_CONN_STRING=redis://redis:6379
+      - TZ={{ timezone }}
+      - ERROR_LOG_ENABLED=true
+      - BATCH_UPDATE_ENABLED=true
+      - NODE_NAME=new-api-node-1
+
+    depends_on:
+      - redis
+      - postgres
+    networks:
+      - frontend
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:3000/api/status | grep -o '\"success\":\\s*true' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  redis:
+    image: {{ new_api.redis.image }}
+    restart: always
+    command: [ "redis-server" ]
+    networks:
+      - backend
+
+  postgres:
+    image: {{ new_api.postgres.image }}
+    restart: always
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: {{ vault_secrets.new_api.postgres.password }}
+      POSTGRES_DB: new-api
+    volumes:
+      - pg_data:/var/lib/postgresql
+    networks:
+      - backend
+
+volumes:
+  pg_data:
+
+networks:
+  frontend:
+    external: true
+    name: homelab_backend
+  backend:
+    driver: bridge

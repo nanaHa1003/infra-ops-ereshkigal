@@ -1,0 +1,14 @@
+---
+galaxy_info:
+  author: nanaha1003
+  description: >
+    Deploys New-API AI gateway, PostgreSQL and Valkey cache.
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Fedora
+      versions:
+        - "43"
+
+dependencies:
+  - role: proxy

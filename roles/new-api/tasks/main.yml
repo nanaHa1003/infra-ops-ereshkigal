@@ -1,0 +1,23 @@
+---
+- name: Create New-API stack directory
+  ansible.builtin.file:
+    path: "{{ stack_root }}/new-api"
+    state: directory
+    owner: 0
+    group: 0
+    mode: '0755'
+
+- name: Deploy New-API Compose
+  ansible.builtin.template:
+    src: new-api.yml.j2
+    dest: "{{ stack_root }}/new-api/docker-compose.yml"
+    mode: '0644'
+  register: new_api_compose
+
+- name: Start/Update New-API
+  community.docker.docker_compose_v2:
+    project_src: "{{ stack_root }}/new-api"
+    state: present
+    pull: always
+  when: new_api_compose.changed
+  tags: [molecule-notest]
