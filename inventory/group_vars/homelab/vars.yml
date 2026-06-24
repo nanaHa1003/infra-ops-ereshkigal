@@ -97,9 +97,9 @@ storage_permissions:
     group: 1000
     mode: "0755"
   - path: "n8n/postgres"
-    owner: 999
-    group: 999
-    mode: "0700"
+    owner: 1000
+    group: 1000
+    mode: "0755"
   # Aria2
   - path: "aria2/config"
     owner: 1000
