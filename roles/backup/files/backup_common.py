@@ -55,5 +55,3 @@ def restic(repo, args, *, cwd=None, timeout=3600, capture=False):
     if result.returncode:
         raise ResticError(result.returncode, result.stderr)
     return result.stdout or b""
-
-
