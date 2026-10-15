@@ -99,11 +99,11 @@
 
 **Interfaces:** `select_snapshot(repo: dict, scope: dict) -> Selection`；`normalize_manifest(raw: dict, selection: dict, legacy_profile: dict) -> RecoveryModel`；`validate_compatibility(model: dict, profile: dict) -> list[dict]`。阻擋項有固定 code＋service，不含原始內容。image overrides 只允許選定服務的已審閱版本／digest，不從 target defaults 自動推斷。
 
-- [ ] **1. Write failing tests**：`test_old_host_selected_on_different_target`、`test_explicit_id_cannot_bypass_completed_scope`、`test_latest_is_pinned_despite_newer_snapshot`、`test_tree_root_is_not_assumed_from_snapshot_paths`、`test_two_manifests_are_rejected`、`test_v1_is_normalized_without_executing_compose`、`test_unknown_version_and_incomplete_legacy_profile_block_service`。v1 fixture 必須符合目前 sources 與 rendered Compose 格式，含 mutable image tag 缺口。
-- [ ] **2. Run RED**：`python -m unittest discover -s tests -p test_recovery_manifest.py -v`。
-- [ ] **3. Implement contracts and parser**：validate IDs/keys/types，safe_load 白名單 image/environment scalar；不執行快照 Compose。明確分開 restic selection path 與 tree_root；artifact 相對路徑不接受 absolute/..。來源操作白名單限 snapshots/ls/dump/restore，保留必要 restic lock，不允許 init/forget/prune/tag。
-- [ ] **4. Verify GREEN**：manifest tests 與真實 restic test；建立包含另一 host/job/pending 的本機 repo，停用來源資料後仍可固定 ID 還原；assert 舊 host/舊 path 與新 target 不同。來源 snapshot 集合前後不變。
-- [ ] **5. Commit**：`feat: resolve cross-host recovery snapshots and legacy manifests`。
+- [x] **1. Write failing tests**：`test_old_host_selected_on_different_target`、`test_explicit_id_cannot_bypass_completed_scope`、`test_latest_is_pinned_despite_newer_snapshot`、`test_tree_root_is_not_assumed_from_snapshot_paths`、`test_two_manifests_are_rejected`、`test_v1_is_normalized_without_executing_compose`、`test_unknown_version_and_incomplete_legacy_profile_block_service`。v1 fixture 必須符合目前 sources 與 rendered Compose 格式，含 mutable image tag 缺口。
+- [x] **2. Run RED**：`python -m unittest discover -s tests -p test_recovery_manifest.py -v`。
+- [x] **3. Implement contracts and parser**：validate IDs/keys/types，safe_load 白名單 image/environment scalar；不執行快照 Compose。明確分開 restic selection path 與 tree_root；artifact 相對路徑不接受 absolute/..。來源操作白名單限 snapshots/ls/dump/restore，保留必要 restic lock，不允許 init/forget/prune/tag。
+- [x] **4. Verify GREEN**：manifest tests 與真實 restic test；建立包含另一 host/job/pending 的本機 repo，停用來源資料後仍可固定 ID 還原；assert 舊 host/舊 path 與新 target 不同。來源 snapshot 集合前後不變。
+- [x] **5. Commit**：`feat: resolve cross-host recovery snapshots and legacy manifests`。
 
 ## Task 4: Map artifacts to empty target paths and validate secrets
 
