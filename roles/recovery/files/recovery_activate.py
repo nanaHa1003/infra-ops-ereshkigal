@@ -39,12 +39,27 @@ def begin_activation(state,services,fenced,reference):
     return plan
 
 
+WORDPRESS_FPM_PROBE = r"""
+$ready=false;
+register_shutdown_function(static function() use (&$ready) {if(!$ready) exit(1);});
+$socket=@fsockopen('127.0.0.1',9000,$errno,$error,5);
+if(!$socket) exit(1);
+fclose($socket);
+ob_start();
+define('WP_USE_THEMES',false);
+require '/var/www/html/wp-load.php';
+ob_end_clean();
+global $wpdb;
+if(!isset($wpdb)||!is_blog_installed()||(string)$wpdb->get_var('SELECT 1')!=='1') exit(1);
+$ready=true;
+"""
+
 APP_PROBES = {
  'n8n': ['node','-e',"fetch('http://127.0.0.1:5678/healthz/readiness').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"],
  'homepage': ['node','-e',"fetch('http://127.0.0.1:3000/api/healthcheck').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"],
  'authentik-server': ['python','-c',"import urllib.request; urllib.request.urlopen('http://127.0.0.1:9000/-/health/ready/',timeout=10).close()"],
  'authentik-worker': ['ak','healthcheck'],
- 'wordpress': ['php','-r',"if(file_get_contents('http://127.0.0.1/wp-login.php')===false)exit(1);"],
+ 'wordpress': ['php','-r',WORDPRESS_FPM_PROBE],
  'mealie': ['python','-c',"import urllib.request; urllib.request.urlopen('http://127.0.0.1:9000/api/app/about',timeout=10).close()"],
  'immich-server': ['node','-e',"fetch('http://127.0.0.1:2283/api/server/ping').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"],
  'caddy': ['wget','-q','-O','/dev/null','http://127.0.0.1:2019/config/'],

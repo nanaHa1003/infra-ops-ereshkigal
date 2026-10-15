@@ -90,11 +90,13 @@ def run_lock(state_root):
 
 
 def cleanup_preview(state: dict) -> list:
+    if state.get("cleanup_complete"):return []
     if state.get("phase") == "activated" or state.get("activation", {}).get("services_started"):
         raise BackupError("cleanup refused after application activation")
     approved = set(state.get("_approved_roots", []))
+    if state.get("owned_paths") or owned_reservations(state): check_reservations(state, require_owned=True)
     preview = []
-    for value in state.get("owned_paths", []):
+    for value in sorted(set(state.get("owned_paths", [])) | set(owned_reservations(state))):
         path = checked_path(value)
         if str(path) not in approved:
             raise BackupError("cleanup path is not an approved run-owned service root")
@@ -108,3 +110,59 @@ def cleanup_preview(state: dict) -> list:
         if name != "recovery-" + state["run_id"]: raise BackupError("cleanup network is not a recovery resource")
         preview.append({"kind": "network", "value": name})
     return sorted(preview, key=lambda item: {"container": 0, "network": 1, "path": 2}[item["kind"]])
+
+
+# Fixed host-wide index: never derived from configurable per-run state_root.
+OWNERSHIP_FILE = Path('/var/lib/homelab-recovery/ownership.json')
+
+
+def _owner(state):
+    return {key:state[key] for key in ('run_id','target_machine_id','snapshot_id','profile_sha256','_state_file')}
+
+
+def _reservations():
+    path=checked_path(str(OWNERSHIP_FILE))
+    if not path.exists():return {}
+    if path.stat().st_mode & 0o077:raise BackupError('destination reservation permissions are not protected')
+    try:
+        data=json.loads(path.read_text())
+        if data.get('schema_version')!=1 or not isinstance(data.get('entries'),dict):raise ValueError()
+        for root,owner in data['entries'].items():
+            checked_path(root)
+            if not isinstance(owner,dict):raise ValueError()
+        return data['entries']
+    except (ValueError,TypeError,OSError) as error:raise BackupError('destination reservation index is invalid') from error
+
+
+def _save_reservations(entries):
+    path=checked_path(str(OWNERSHIP_FILE));path.parent.mkdir(mode=0o700,parents=True,exist_ok=True);path.parent.chmod(0o700)
+    save_state({'_state_file':str(path),'schema_version':1,'entries':entries})
+
+
+def check_reservations(state,require_owned=False):
+    entries=_reservations();owner=_owner(state)
+    for root in state['_approved_roots']:
+        path=checked_path(root)
+        for other,claim in entries.items():
+            candidate=checked_path(other)
+            if (candidate==path or candidate in path.parents or path in candidate.parents) and claim!=owner:
+                raise BackupError('destination is reserved by another recovery run')
+        if require_owned and entries.get(str(path))!=owner:
+            raise BackupError('destination is not durably owned by this recovery run')
+    return entries
+
+
+def reserve_paths(state):
+    entries=check_reservations(state)
+    for root in state['_approved_roots']:entries[root]=_owner(state)
+    _save_reservations(entries)
+
+
+def owned_reservations(state):
+    return [root for root,owner in _reservations().items() if owner==_owner(state)]
+
+
+def release_paths(state,completed=False):
+    entries=_reservations() if completed else check_reservations(state,require_owned=True)
+    owner=_owner(state)
+    _save_reservations({root:claim for root,claim in entries.items() if claim!=owner})

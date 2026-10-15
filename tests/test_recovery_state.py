@@ -18,6 +18,8 @@ class RecoveryState(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name).resolve()
+        claim_patch=patch.object(self.module,"OWNERSHIP_FILE",self.root/"host/ownership.json")
+        claim_patch.start();self.addCleanup(claim_patch.stop)
         self.plan = {"run_id": "fixture-run", "selection": {"snapshot_id": "a" * 64}, "profile_sha256": "b" * 64,
                      "target": {"machine_id": "target-one"}, "services": ["auth"], "approved_roots": [str(self.root / "new/auth") ]}
         self.state_root = self.root / "recovery"
@@ -56,6 +58,7 @@ class RecoveryState(unittest.TestCase):
 
     def test_cleanup_stops_owned_resources_before_removing_data(self):
         state = self.module.open_run(self.plan, self.state_root)
+        self.module.reserve_paths(state)
         state['owned_paths'] = self.plan['approved_roots']
         state['owned_containers'] = ['recovery-db-fixture-run-auth']
         state['owned_networks'] = ['recovery-fixture-run']
@@ -91,6 +94,7 @@ class CleanupCreationFailure(unittest.TestCase):
         import recovery_runner as runner
         state=self.module.open_run(self.plan,self.state_root)
         data=Path(self.plan['approved_roots'][0]);data.mkdir(parents=True);(data/'partial').touch()
+        self.module.reserve_paths(state)
         state['owned_paths']=[str(data)];state['owned_containers']=['recovery-db-fixture-run-auth'];state['owned_networks']=['recovery-fixture-run']
         with patch.object(runner,'_docker',return_value=b''):
             runner.cleanup_run(state)

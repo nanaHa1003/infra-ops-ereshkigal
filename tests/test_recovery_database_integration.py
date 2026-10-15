@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT / 'roles/recovery/files'), str(ROOT / 'roles/backup/files')]
 from recovery_databases import _docker, _restore_postgres, _restore_mariadb, pg_sql, mysql_sql, database_spec, restore_database, stop_recovery_databases, BackupError
 from recovery_state import open_run, advance_service
+from backup_sources import database_export
 
 @unittest.skipUnless(os.environ.get('HOMELAB_RECOVERY_INTEGRATION') == '1', 'real database integration explicitly disabled')
 class RealDatabaseRecovery(unittest.TestCase):
@@ -25,7 +26,7 @@ class RealDatabaseRecovery(unittest.TestCase):
         state = None
         try:
             postgres = major != 'mariadb'
-            args = ['run', '-d', '--name', source_name, '--network', 'none', '-e', 'POSTGRES_PASSWORD=fake-source', '-e', 'POSTGRES_USER=app', '-e', 'POSTGRES_DB=appdb'] if postgres else ['run', '-d', '--name', source_name, '--network', 'none', '-e', 'MARIADB_ROOT_PASSWORD=fake-source']
+            args = ['run', '-d', '--name', source_name, '--network', 'none', '-e', 'POSTGRES_PASSWORD=fake-source', '-e', 'POSTGRES_USER=app', '-e', 'POSTGRES_DB=appdb'] if postgres else ['run', '-d', '--name', source_name, '--network', 'none', '-e', 'MARIADB_ROOT_PASSWORD=fake-source', '-e', 'MYSQL_USER=app', '-e', 'MYSQL_PASSWORD=fake-app', '-e', 'MYSQL_DATABASE=appdb']
             args += [image]
             if extension: args += ['postgres', '-c', 'config_file=/etc/postgresql/postgresql.conf', '-c', 'shared_preload_libraries=vchord.so,vectors.so']
             _docker(args, timeout=180)
@@ -41,16 +42,17 @@ class RealDatabaseRecovery(unittest.TestCase):
                 if extension:
                     sql += "CREATE EXTENSION vector; CREATE EXTENSION vectors; CREATE EXTENSION vchord CASCADE; CREATE TABLE embedding(id integer PRIMARY KEY, value vector(3)); INSERT INTO embedding VALUES(1,'[1,2,3]'); CREATE INDEX embedding_hnsw ON embedding USING hnsw(value vector_l2_ops);"
                 pg_sql(spec, sql, 'appdb')
-                version = pg_sql(spec, 'SELECT version();', 'appdb')
-                extensions = json.loads(pg_sql(spec, "SELECT json_agg(json_build_object('name',extname,'version',extversion)) FROM pg_extension;", 'appdb'))
-                dump = _docker(['exec', source_name, 'pg_dump', '-U', 'app', '-d', 'appdb', '-Fc', '--no-owner', '--no-acl'])
                 kind = 'postgres'; suffix = 'dump'
-                metadata = {'version': version, 'extensions': extensions, 'database': 'appdb', 'role': 'app', 'preload_libraries': 'vchord.so,vectors.so' if extension else ''}
             else:
-                mysql_sql(spec, "CREATE DATABASE appdb; CREATE USER 'app'@'%' IDENTIFIED BY 'fake-app'; GRANT ALL ON appdb.* TO 'app'@'%'; CREATE TABLE appdb.parent(id int PRIMARY KEY, name text); INSERT INTO appdb.parent VALUES(1,'fixture'); CREATE TABLE appdb.child(id int PRIMARY KEY,parent_id int, FOREIGN KEY(parent_id) REFERENCES parent(id)); INSERT INTO appdb.child VALUES(2,1); CREATE DEFINER='app'@'%' PROCEDURE appdb.read_parent() SELECT * FROM appdb.parent; CREATE DEFINER='app'@'%' TRIGGER appdb.parent_update BEFORE UPDATE ON appdb.parent FOR EACH ROW SET NEW.name=UPPER(NEW.name); CREATE DEFINER='app'@'%' EVENT appdb.test_event ON SCHEDULE EVERY 1 DAY DO UPDATE appdb.parent SET name='event';")
-                version = mysql_sql(spec, 'SELECT VERSION();')
-                dump = _docker(['exec', source_name, 'sh', '-c', 'export MYSQL_PWD="$MARIADB_ROOT_PASSWORD"; exec mariadb-dump -uroot --single-transaction --routines --events --triggers --databases appdb'])
-                kind = 'mariadb'; suffix = 'sql'; metadata = {'version': version, 'database': 'appdb', 'role': 'app', 'definers': ['app@%']}
+                mysql_sql(spec, "CREATE DATABASE IF NOT EXISTS appdb; CREATE USER IF NOT EXISTS 'app'@'%' IDENTIFIED BY 'fake-app'; GRANT ALL ON appdb.* TO 'app'@'%'; CREATE TABLE appdb.parent(id int PRIMARY KEY, name text); INSERT INTO appdb.parent VALUES(1,'fixture'); CREATE TABLE appdb.child(id int PRIMARY KEY,parent_id int, FOREIGN KEY(parent_id) REFERENCES parent(id)); INSERT INTO appdb.child VALUES(2,1); CREATE DEFINER='app'@'%' PROCEDURE appdb.read_parent() SELECT * FROM appdb.parent; CREATE DEFINER='app'@'%' TRIGGER appdb.parent_update BEFORE UPDATE ON appdb.parent FOR EACH ROW SET NEW.name=UPPER(NEW.name); CREATE DEFINER='app'@'%' EVENT appdb.test_event ON SCHEDULE EVERY 1 DAY DO UPDATE appdb.parent SET name='event';")
+                kind = 'mariadb'; suffix = 'sql'
+            exported=base/'exported';exported.mkdir(mode=0o700)
+            metadata=database_export({'kind':kind,'container':source_name},exported)
+            dump=(exported/('database.'+suffix)).read_bytes()
+            self.assertEqual(metadata['database'],'appdb')
+            self.assertEqual(metadata['role'],'app')
+            if extension:self.assertEqual(set(metadata['preload_libraries'].split(',')),{'vchord.so','vectors.so'})
+            if not postgres:self.assertEqual(metadata['definers'],['app@%'])
             _docker(['rm', '-f', '-v', source_name])
             source_name = None
             data = base / 'storage' / 'db'
@@ -123,4 +125,7 @@ class RealDatabaseRecovery(unittest.TestCase):
     def test_postgres16(self): self.roundtrip('n8n', 'postgres:16.10-alpine', '16')
     def test_postgres18(self): self.roundtrip('n8n', 'postgres:18.0-alpine', '18')
     def test_immich_extensions(self): self.roundtrip('immich', 'ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0', '14', True)
-    def test_mariadb_routines_and_definers(self): self.roundtrip('wordpress', 'mariadb:11.4.5', 'mariadb')
+    def test_mariadb_routines_and_definers(self):
+        self.roundtrip('wordpress', 'mariadb:11.4.5', 'mariadb')
+        from recovery_wp_fixture import exercise_fpm_probe
+        exercise_fpm_probe()

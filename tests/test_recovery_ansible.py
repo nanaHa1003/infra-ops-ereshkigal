@@ -7,8 +7,10 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path[:0]=[str(ROOT/"roles/recovery/files"),str(ROOT/"roles/backup/files")]
 
 class RecoveryAnsible(unittest.TestCase):
     def setUp(self):
@@ -58,6 +60,26 @@ class RecoveryAnsible(unittest.TestCase):
         self.assertFalse((self.scratch / "data").exists())
         self.assertTrue(plan.exists(), "check mode did not produce a preflight report")
         self.assertTrue(json.loads(plan.read_text())["blockers"])
+
+    @unittest.skipUnless(os.geteuid()==0,'root-only dynamic prepare regression runs in Molecule recovery')
+    def test_actual_dynamic_prepare_renders_all_services_without_starting(self):
+        from recovery_runner import IMAGE_VARIABLES
+        source=yaml.safe_load((ROOT/'roles/recovery/tasks/prepare.yml').read_text())
+        tasks=[task for task in source if 'ansible.builtin.include_role' in task and 'vars' in task]
+        self.assertEqual(len(tasks),9)
+        variables=yaml.safe_load((ROOT/'inventory/group_vars/all/vault.ci.yml').read_text())
+        variables.update({'domain':'fixture.test','timezone':'UTC','storage_root':str(self.scratch/'data'),'stack_root':str(self.scratch/'stack'),
+            'recover_services':list(IMAGE_VARIABLES),'recovery_pinned_plan':{'image_variables':{name:'fixture/'+name+'@sha256:'+'a'*64 for names in IMAGE_VARIABLES.values() for name in names.values()}}})
+        play=self.scratch/'prepare.yml'
+        play.write_text(yaml.safe_dump([{'name':'Execute actual recovery prepare role includes','hosts':'one','gather_facts':False,'vars':variables,'tasks':tasks}],sort_keys=False))
+        executable=shutil.which('ansible-playbook') or str(Path(sys.executable).parent/'ansible-playbook')
+        result=subprocess.run([executable,str(play),'-i',str(self.inventory),'--skip-tags','molecule-notest'],cwd=self.scratch,env={**os.environ,'ANSIBLE_CONFIG':str(self.config),'ANSIBLE_NOCOLOR':'1'},capture_output=True,text=True,timeout=90)
+        self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+        self.assertNotIn('Start/Update',result.stdout)
+        for service in IMAGE_VARIABLES:
+            path=self.scratch/'stack'/service/'docker-compose.yml'
+            self.assertTrue(path.exists(),str(path))
+            self.assertTrue(all('@sha256:' in value['image'] for value in yaml.safe_load(path.read_text())['services'].values()))
 
     def test_invalid_phase_is_rejected_before_bootstrap(self):
         result = self.run_play("--check", "--limit", "one", "-e", "recover_phase=unsafe")

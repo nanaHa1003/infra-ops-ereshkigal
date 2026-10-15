@@ -56,7 +56,7 @@ class RecoveryWiring(unittest.TestCase):
         config={'services':['auth'],'target':{},'registry':{},'secrets':{}}
         plan={'model':{},'image_variables':{}}
         state['results']={}
-        with patch.object(runner,'save_state'), patch.object(runner,'write_report'), patch.object(runner,'restore_database'), patch.object(runner,'verify_service',side_effect=runner.BackupError('fixture fail')), patch.object(runner,'stop_recovery_databases') as stop:
+        with patch.object(runner,'check_reservations'),patch.object(runner,'guard_running_mounts'),patch.object(runner,'validate_snapshot_inputs'),patch.object(runner,'save_state'), patch.object(runner,'write_report'), patch.object(runner,'restore_database'), patch.object(runner,'verify_service',side_effect=runner.BackupError('fixture fail')), patch.object(runner,'stop_recovery_databases') as stop:
             with self.assertRaises(runner.BackupError): runner.restore_and_verify(config,plan,state,False)
         stop.assert_called_once_with(state)
 
@@ -78,7 +78,7 @@ def importing(*args):
  (root/'started').touch(); time.sleep(30)
 def stopped(*args): (root/'stopped').touch()
 try:
- with patch.object(runner,'restore_database',side_effect=importing),patch.object(runner,'stop_recovery_databases',side_effect=stopped):
+ with patch.object(runner,'check_reservations'),patch.object(runner,'guard_running_mounts'),patch.object(runner,'validate_snapshot_inputs'),patch.object(runner,'restore_database',side_effect=importing),patch.object(runner,'stop_recovery_databases',side_effect=stopped):
   runner.restore_and_verify(config,{'model':{},'image_variables':{}},state,False)
 except runner.BackupError: sys.exit(1)
 """

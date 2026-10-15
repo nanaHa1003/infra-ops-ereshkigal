@@ -30,78 +30,78 @@
   ansible.builtin.include_role:
     name: proxy
     tasks_from: networks.yml
-- name: Start pinned proxy service
+- name: Prepare pinned proxy files
   ansible.builtin.include_role:
     name: proxy
-    tasks_from: start-caddy.yml
+    tasks_from: prepare.yml
   vars:
     proxy_caddy_image: '{{ recovery_pinned_plan.image_variables.proxy_caddy_image }}'
     proxy_socket_proxy_image: '{{ recovery_pinned_plan.image_variables.proxy_socket_proxy_image }}'
-  when: recovery_activation_service == 'proxy'
-- name: Start pinned auth service
+  when: '''proxy'' in recover_services'
+- name: Prepare pinned auth files
   ansible.builtin.include_role:
     name: auth
-    tasks_from: start.yml
+    tasks_from: prepare.yml
   vars:
     auth_postgres_image: '{{ recovery_pinned_plan.image_variables.auth_postgres_image }}'
     auth_redis_image: '{{ recovery_pinned_plan.image_variables.auth_redis_image }}'
     auth_authentik_image: '{{ recovery_pinned_plan.image_variables.auth_authentik_image }}'
-  when: recovery_activation_service == 'auth'
-- name: Start pinned wordpress service
+  when: '''auth'' in recover_services'
+- name: Prepare pinned wordpress files
   ansible.builtin.include_role:
     name: wordpress
-    tasks_from: start.yml
+    tasks_from: prepare.yml
   vars:
     wordpress_mariadb_auto_upgrade: false
     wordpress_image: '{{ recovery_pinned_plan.image_variables.wordpress_image }}'
     wordpress_mariadb_image: '{{ recovery_pinned_plan.image_variables.wordpress_mariadb_image }}'
-  when: recovery_activation_service == 'wordpress'
-- name: Start pinned pinchflat service
+  when: '''wordpress'' in recover_services'
+- name: Prepare pinned pinchflat files
   ansible.builtin.include_role:
     name: pinchflat
-    tasks_from: start.yml
+    tasks_from: prepare.yml
   vars:
     pinchflat_image: '{{ recovery_pinned_plan.image_variables.pinchflat_image }}'
-  when: recovery_activation_service == 'pinchflat'
-- name: Start pinned immich service
+  when: '''pinchflat'' in recover_services'
+- name: Prepare pinned immich files
   ansible.builtin.include_role:
     name: immich
-    tasks_from: start.yml
+    tasks_from: prepare.yml
   vars:
     immich_server_image: '{{ recovery_pinned_plan.image_variables.immich_server_image }}'
     immich_ml_image: '{{ recovery_pinned_plan.image_variables.immich_ml_image }}'
     immich_postgres_image: '{{ recovery_pinned_plan.image_variables.immich_postgres_image }}'
     immich_redis_image: '{{ recovery_pinned_plan.image_variables.immich_redis_image }}'
-  when: recovery_activation_service == 'immich'
-- name: Start pinned mealie service
+  when: '''immich'' in recover_services'
+- name: Prepare pinned mealie files
   ansible.builtin.include_role:
     name: mealie
-    tasks_from: start.yml
+    tasks_from: prepare.yml
   vars:
     mealie_image: '{{ recovery_pinned_plan.image_variables.mealie_image }}'
-  when: recovery_activation_service == 'mealie'
-- name: Start pinned homepage service
+  when: '''mealie'' in recover_services'
+- name: Prepare pinned homepage files
   ansible.builtin.include_role:
     name: homepage
-    tasks_from: start.yml
+    tasks_from: prepare.yml
   vars:
     homepage_image: '{{ recovery_pinned_plan.image_variables.homepage_image }}'
-  when: recovery_activation_service == 'homepage'
-- name: Start pinned n8n service
+  when: '''homepage'' in recover_services'
+- name: Prepare pinned n8n files
   ansible.builtin.include_role:
     name: n8n
-    tasks_from: start.yml
+    tasks_from: prepare.yml
   vars:
     n8n_image: '{{ recovery_pinned_plan.image_variables.n8n_image }}'
     n8n_postgres_image: '{{ recovery_pinned_plan.image_variables.n8n_postgres_image }}'
-  when: recovery_activation_service == 'n8n'
-- name: Start pinned aria2 service
+  when: '''n8n'' in recover_services'
+- name: Prepare pinned aria2 files
   ansible.builtin.include_role:
     name: aria2
-    tasks_from: start.yml
+    tasks_from: prepare.yml
   vars:
     aria2_image: '{{ recovery_pinned_plan.image_variables.aria2_image }}'
-  when: recovery_activation_service == 'aria2'
+  when: '''aria2'' in recover_services'
 - name: Apply replacement SELinux labels
   ansible.builtin.command:
     argv:

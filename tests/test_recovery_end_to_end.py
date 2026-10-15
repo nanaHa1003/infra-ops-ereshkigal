@@ -8,6 +8,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 from recovery_fixtures import sqlite_repository
+import recovery_state
 from recovery_runner import create_plan,load_plan,download,restore_and_verify
 from backup_common import restic
 
@@ -16,7 +17,7 @@ class RecoveryEndToEnd(unittest.TestCase):
     def roundtrip(self,version):
         with tempfile.TemporaryDirectory() as temporary:
             root=Path(temporary).resolve()
-            with patch.dict(os.environ,{'RESTIC_CACHE_DIR':str(root/'cache')}):
+            with patch.object(recovery_state,'OWNERSHIP_FILE',root/'host/ownership.json'),patch('recovery_runner._docker',return_value=b''),patch.dict(os.environ,{'RESTIC_CACHE_DIR':str(root/'cache')}):
                 config=sqlite_repository(root,version)
                 before=json.loads(restic(config['repository'],['snapshots','--json'],capture=True))
                 result=create_plan(config);self.assertEqual(result['blockers'],[])

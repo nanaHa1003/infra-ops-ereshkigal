@@ -19,7 +19,7 @@ from backup_sources import command
 from recovery_manifest import normalize_manifest, select_snapshot, validate_compatibility
 from recovery_models import relative_artifact, source_scope
 from recovery_files import build_mappings, compare_recovery_secrets, install_artifacts, validate_artifacts, validate_targets
-from recovery_state import PHASES, advance_service, cleanup_preview, open_run, run_lock, save_state
+from recovery_state import PHASES, advance_service, cleanup_preview, open_run, run_lock, save_state, check_reservations, reserve_paths, release_paths
 
 from recovery_databases import restore_database, stop_recovery_databases, _docker, running_volume_users, wait_database
 from recovery_activate import begin_activation, finish_activation, check_activation_ready, validate_activation_environment
@@ -180,10 +180,27 @@ def load_plan(config, run_id=None):
     return plan
 
 
+def validate_snapshot_inputs(config,plan,state):
+    scratch=Path(state['_run_root'])/'scratch'
+    model={**plan['model'],'services':config['services']}
+    target={**config['target'],'services':config['services'],'run_id':state['run_id'],'scratch_root':str(scratch),
+        'wordpress_core_image':plan['image_variables'].get('wordpress_image')}
+    mappings=build_mappings(model,target,config['registry'])
+    validate_artifacts(mappings,scratch)
+    checks=compare_recovery_secrets(model,scratch,config['secrets'])
+    state['results']['secret_checks']=checks
+    save_state(state)
+    if any(not row['matched'] for row in checks):
+        raise BackupError('historical Vault mismatch; inspect field-only recovery report')
+    return checks
+
+
 def download(config, plan):
     state = open_run(plan, Path(config["state_root"]))
     if state["activation"]["services_started"]:
         raise BackupError("restore refused after application activation")
+    if state.get("cleanup_complete"):raise BackupError("run cleanup must finish before recovery")
+    check_reservations(state, require_owned=state["phase"] != "planned")
     scratch = Path(state["_run_root"]) / "scratch"
     target = {**config["target"], "services": config["services"], "run_id": state["run_id"], "scratch_root": str(scratch),
               "wordpress_core_image": plan["image_variables"].get("wordpress_image")}
@@ -193,21 +210,19 @@ def download(config, plan):
         root = checked_path(value)
         if root.exists() and (not root.is_dir() or any(root.iterdir())) and value not in state["owned_paths"]:
             raise BackupError("planned destination contains unowned data")
-    if state["phase"] != "planned": return state
+    if state["phase"] != "planned":
+        validate_snapshot_inputs(config,plan,state)
+        return state
     source = {**config["source"], "snapshot": plan["selection"]["snapshot_id"]}
     selection = select_snapshot(config["repository"], source)
     if selection != plan["selection"]:
         raise BackupError("pinned source metadata changed")
     scratch.mkdir(mode=0o700, parents=True, exist_ok=True)
     restic(config["repository"], ["restore", selection["snapshot_id"], "--target", str(scratch), "--verify"])
-    model = {**plan["model"], "services": config["services"]}
-    validate_artifacts(mappings, scratch)
-    checks = compare_recovery_secrets(model, scratch, config["secrets"])
-    state["results"]["secret_checks"] = checks
-    save_state(state)
-    if any(not item["matched"] for item in checks):
-        raise BackupError("historical Vault mismatch; inspect field-only recovery report")
+    checks=validate_snapshot_inputs(config,plan,state)
     # Reserve only preflight-checked roots before Ansible prepares them.
+    guard_running_mounts(state)
+    reserve_paths(state)
     state["owned_paths"] = list(plan["approved_roots"])
     save_state(state)
     for value in plan["approved_roots"]:
@@ -222,6 +237,9 @@ def restore_and_verify(config, plan, state, verify_only):
     if state['activation']['services_started']: raise BackupError('data verification refused after activation')
     if verify_only and PHASES.index(state['phase']) < PHASES.index('imported'):
         raise BackupError('verification requires completed imports')
+    check_reservations(state,require_owned=True)
+    guard_running_mounts(state)
+    validate_snapshot_inputs(config,plan,state)
     scratch = Path(state['_run_root']) / 'scratch'
     target = {**config['target'], 'registry':config['registry'], 'secrets':config['secrets'], 'services':config['services'],
         'run_id':state.get('run_id'), 'scratch_root':str(scratch), 'image_variables':plan['image_variables'], 'wordpress_core_image':plan['image_variables'].get('wordpress_image')}
@@ -258,8 +276,26 @@ def restore_and_verify(config, plan, state, verify_only):
         stop_recovery_databases(state)
 
 
+def guard_running_mounts(state,allow_started=False):
+    roots=[checked_path(value) for value in state['_approved_roots']]
+    for container in _docker(['ps','-q']).decode().split():
+        selected=json.loads(_docker(['inspect','--format','{"run":{{json (index .Config.Labels "homelab.recovery.run")}},"mounts":{{json .Mounts}},"project":{{json (index .Config.Labels "com.docker.compose.project")}}}',container]))
+        if selected.get('run')==state['run_id']:continue
+        if allow_started and selected.get('project') in state.get('activation',{}).get('services_started',[]):continue
+        for mount in selected.get('mounts',[]):
+            if not mount.get('Source','').startswith('/'):continue
+            source=Path(mount['Source']).resolve()
+            if any(source==root or source in root.parents or root in source.parents for root in roots):
+                raise BackupError('recovery destination is used by a foreign running container')
+
+
 def cleanup_run(state):
+    if state.get("cleanup_complete"):
+        release_paths(state,completed=True)
+        shutil.rmtree(checked_path(state["_run_root"]))
+        return
     preview=cleanup_preview(state)
+    guard_running_mounts(state)
     existing_containers=set(_docker(['ps','-a','--format','{{.Names}}']).decode().split())
     existing_networks=set(_docker(['network','ls','--format','{{.Name}}']).decode().split())
     present=[]
@@ -278,6 +314,9 @@ def cleanup_run(state):
         if kind=='container':_docker(['rm','-f','-v',value],timeout=60)
         elif kind=='network':_docker(['network','rm',value],timeout=60)
         elif checked_path(value).exists():shutil.rmtree(checked_path(value))
+    state["cleanup_complete"]=True
+    save_state(state)
+    release_paths(state,completed=True)
     shutil.rmtree(checked_path(state['_run_root']))
 
 
@@ -333,9 +372,12 @@ def main(argv=None):
                 return 0
             state = open_run(plan, Path(config["state_root"]))
             if args.operation.startswith('activation-'):
+                check_reservations(state,require_owned=True)
+                validate_snapshot_inputs(config,plan,state)
                 options=config['activation']; selected=options['services']
                 validate_activation_environment(config,plan,state,selected)
                 if args.operation=='activation-begin':
+                    guard_running_mounts(state,allow_started=True)
                     result=begin_activation(state,selected,options.get('old_host_fenced') is True,options.get('fencing_reference'))
                 elif args.operation=='activation-ready':
                     if args.service not in state['activation']['services_started']: raise BackupError('service was not authorized for activation')

@@ -9,7 +9,7 @@
 ## 事前準備
 
 - Git checkout 與快照對應的 role/template 版本；控制端 Python/YAML、Ansible collections、Restic。
-- 歷史 Ansible Vault、Vault 解密方式、Restic 密碼、來源 B2 限定 prefix 的讀取憑證。這些不能只放在故障伺服器裡。不要把秘密放進 `-e`、命令列、Git 或報告。
+- 歷史 Ansible Vault、Vault 解密方式、Restic 密碼、來源 B2 限定 prefix 的憑證（讀取時也需允許 Restic 建立／移除 lock）。這些不能只放在故障伺服器裡。不要把秘密放進 `-e`、命令列、Git 或報告。
 - 空白替代主機、sudo、Docker 可安裝、明確的實體儲存掛載點與足夠暫存空間。既有 Podman/Buildah 等衝突套件會被拒絕，不會由復原流程移除。
 - 來源 snapshot 的完整 image digest／Linux OS／amd64 架構資料。無 digest 或架構不符時先解決版本缺口；不使用最新 image 猜測。
 - 設定只存於本機、受 Git ignore 的 inventory/profile。從 `inventory/recovery.ini.example` 與 `inventory/recovery-profile.yml.example` 複製。替代機先保留在 `recovery_targets`，不要加入正式 `homelab` 群組。
@@ -27,7 +27,7 @@ ansible-playbook recover.yml -i inventory/recovery.ini --limit replacement \
   -e @inventory/recovery-profile.yml -e recover_phase=plan --ask-become-pass
 ```
 
-保留輸出的 `.recovery/<run_id>.plan.json`；它固定完整 snapshot ID、來源 scope、目標 machine-id、services、路徑、image digests 與 profile hash。後續操作在 profile 增加 `recover_plan_file: /absolute/path/.recovery/<run_id>.plan.json`。不要修改產生的 plan。改目標、服務或歷史 Vault 版本時重新規劃，不能拿不同 profile 接續既有 run。
+保留輸出的 `.recovery/<run_id>.plan.json`；它固定完整 snapshot ID、來源 scope、目標 machine-id、services、路徑、image digests 與 profile hash。後續操作在 profile 增加 `recover_plan_file: /absolute/path/.recovery/<run_id>.plan.json`。不要修改產生的 plan。改目標、服務或歷史 Vault 版本時重新規劃，不能拿不同 profile 接續既有 run。重新 plan 時移除 recover_plan_file 或另指定不存在的新檔，避免覆蓋舊計畫。
 
 ```sh
 ansible-playbook recover.yml -i inventory/recovery.ini --limit replacement \
@@ -38,6 +38,8 @@ Restore 安裝專用工具、下載固定快照、驗證 artifacts／歷史 secr
 
 報告在新機 `/var/lib/homelab-recovery/runs/<run_id>/report.json`，root-only。n8n credential 明文只在 CLI 容器 tmpfs，輸出只有數量。PG/MariaDB 沒有歷史數量 baseline 時顯示有限驗證，並非與來源所有內容相同。版本不支援、解密失敗或缺媒體會有明確限制／啟動阻擋。
 
+續跑 restore、verify 及 activate 都會重新檢查歷史 Compose/Vault 欄位；沿用同一個 Vault revision 字串不能略過實際比對。報告不保存秘密或秘密雜湊。
+
 可重跑 verify，不會重匯入資料庫：
 
 ```sh
@@ -45,7 +47,7 @@ ansible-playbook recover.yml -i inventory/recovery.ini --limit replacement \
   -e @inventory/recovery-profile.yml -e recover_phase=verify --ask-become-pass
 ```
 
-資料庫匯入中斷會記 failed，不自動覆寫再匯入。先 preview 再用相符 run ID 清理，只限此 run 記錄的目錄、容器與 network，不能清正式服務或任意目錄。應用開始啟動後即禁止 cleanup。
+資料庫匯入中斷會記 failed，不自動覆寫再匯入。先 preview 再用相符 run ID 清理，只限此 run 記錄的目錄、容器與 network，不能清正式服務或任意目錄。主機層 `/var/lib/homelab-recovery/ownership.json` 持久保留目錄認領，獨立於 profile 的 state_root；空目錄也不能由另一 run 認領。不要手動刪除這份 index。清理也會拒絕 foreign running container 掛載中的目錄。應用開始啟動後即禁止 cleanup。
 
 ```sh
 ansible-playbook recover.yml -i inventory/recovery.ini --limit replacement \
@@ -83,4 +85,8 @@ ansible-playbook recover.yml -i inventory/recovery.ini --limit replacement \
 
 **尚待驗收：空白 Fedora43 x86_64 VM、SELinux enforcing、不同 UID／儲存掛載路徑、重開機後完整 Ansible 還原與正式啟動。** 本機容器測試不等同此驗收；尚未在新機部署本功能，也未對正式 B2 repository 做復原寫入。照片／媒體備份及完整性驗證另行處理。
 
-開發回歸另包含：137項 unittest／本機 Restic 測試通過（五項需 Docker 的測試在一般 suite 明確停用，另以強制 gate 全部實跑通過）；v1/v2 在來源刪除後 plan→download→restore→verify 的 SQLite/config round trip；Molecule recovery 以 UID1007/GID1008 驗證實際 owner，第二次 converge 零變更。Molecule 僅驗證 component 包裝與資料層，不宣稱已跑完整 Fedora43 `recover.yml` 正式接管。
+開發回歸另包含：145項 unittest／本機 Restic 測試通過（五項需 Docker 的測試在一般 suite 明確停用，另以強制 gate 全部實跑；需要 root 的動態 Ansible prepare 測試另在 Molecule 實跑通過，九個服務產生固定 digest Compose 且沒有 startup task）；v1/v2 在來源刪除後 plan→download→restore→verify 的 SQLite/config round trip；Molecule recovery 以 UID1007/GID1008 驗證實際 owner，第二次 converge 零變更。Molecule 僅驗證 component 包裝與資料層，不宣稱已跑完整 Fedora43 `recover.yml` 正式接管。
+
+完整實作裁定、代價及 review 保留的驗收界線見 [recovery-decisions.md](recovery-decisions.md)。
+
+獨立 review 提出的四項問題已補對應回歸：prepare 只呼叫 prepare 入口；持久 host-wide reservation 保護跨 run 空目錄與 foreign mount；WordPress 使用 FPM9000＋bootstrap/DB readiness；resume/activate 重新比對實際歷史 Vault 欄位。WordPress 固定6.8.3 FPM fixture 使用合成 bootstrap 檢查成功與提早退出，完整 WordPress 登入仍屬 VM 驗收。五項真實 matrix 另直接使用正式 backup_sources 產生 dump 與 metadata，匯出後移除來源再還原；最後一輪約128秒（含 FPM fixture，images cached），不代表正式 RTO。

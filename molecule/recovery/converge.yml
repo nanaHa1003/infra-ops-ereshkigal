@@ -8,17 +8,37 @@
         path: /opt/recovery-fixture/{{ item }}
         state: directory
         mode: '0700'
-      loop: [roles/backup, roles/recovery, tests]
-    - name: Copy public recovery and backup modules only
+      loop:
+        - roles/backup
+        - roles/recovery
+        - tests
+        - inventory/group_vars/all
+        - inventory/group_vars/homelab
+    - name: Copy public roles without inventory secrets
       ansible.builtin.copy:
-        src: '{{ molecule_scenario_directory }}/../../roles/{{ item }}/files'
-        dest: /opt/recovery-fixture/roles/{{ item }}/
+        src: '{{ molecule_scenario_directory }}/../../roles/'
+        dest: /opt/recovery-fixture/roles/
         mode: '0700'
         directory_mode: '0700'
-      loop: [backup, recovery]
     - name: Copy synthetic end-to-end tests
       ansible.builtin.copy:
         src: '{{ molecule_scenario_directory }}/../../tests/{{ item }}'
         dest: /opt/recovery-fixture/tests/{{ item }}
         mode: '0700'
-      loop: [recovery_fixtures.py, test_recovery_end_to_end.py]
+      loop:
+        - recovery_fixtures.py
+        - test_recovery_end_to_end.py
+        - test_recovery_ansible.py
+    - name: Copy standalone recovery play
+      ansible.builtin.copy:
+        src: '{{ molecule_scenario_directory }}/../../recover.yml'
+        dest: /opt/recovery-fixture/recover.yml
+        mode: '0700'
+    - name: Copy public layout definitions and synthetic Vault only
+      ansible.builtin.copy:
+        src: '{{ molecule_scenario_directory }}/../../inventory/group_vars/{{ item }}'
+        dest: /opt/recovery-fixture/inventory/group_vars/{{ item }}
+        mode: '0600'
+      loop:
+        - all/vault.ci.yml
+        - homelab/vars.yml
