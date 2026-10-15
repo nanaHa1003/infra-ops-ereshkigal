@@ -111,11 +111,11 @@
 
 **Interfaces:** `build_mappings(model: dict, target: dict, registry: dict) -> list[Mapping]`；`validate_targets(mappings: list, state: dict | None) -> None`；`install_artifacts(mappings: list, scratch: Path, state: dict) -> list[str]` 回傳新建 owned paths；`compare_recovery_secrets(model: dict, scratch: Path, secrets: dict) -> list[dict]` 只回傳欄位名與 matched boolean。
 
-- [ ] **1. Write failing tests**：`test_new_storage_root_replaces_old_absolute_paths`、`test_missing_mount_or_nonempty_target_blocks_install`、`test_symlink_traversal_overlap_and_scratch_recursion_rejected`、`test_same_run_owned_paths_allowed_but_other_run_rejected`、`test_historical_vault_mismatch_reports_no_values`、`test_wordpress_core_precedes_restored_custom_files`、`test_mealie_prompts_not_overwritten_after_restore`、`test_empty_required_directory_is_preserved`。
-- [ ] **2. Run RED**：分別執行 `python -m unittest discover -s tests -p test_recovery_files.py -v` 及 `test_recovery_secrets.py`。
-- [ ] **3. Implement registry and file install**：照 spec §7 列完全部來源 ID。file 與 directory artifacts 分開處理，必需／optional_absent 來自 registry；未知 source 只留 scratch。測試 registry 目的地與現有 storage_permissions／Compose volume 定義相容，避免另維護一份會漂移的硬編碼路徑。Compose/Caddy/DDNS 不整份照搬；比對白名單 secrets 後以 target templates render。n8n key 取同一快照檔案。WordPress core 從匹配 image 的 `/usr/src/wordpress` 取到 run-owned scratch，再 overlay 自訂內容；不執行 WordPress entrypoint／下載最新 core。
-- [ ] **4. Verify GREEN**：檔案／secret 測試均通過，錯誤訊息、captured subprocess argv、report 不含 fixture secrets。以兩個不同 UID/GID profiles 檢查只處理選定服務路徑；SELinux 行為留 Task 9 真實 VM 驗證。
-- [ ] **5. Commit**：`feat: map recovery artifacts and validate historical secrets`。
+- [x] **1. Write failing tests**：`test_new_storage_root_replaces_old_absolute_paths`、`test_missing_mount_or_nonempty_target_blocks_install`、`test_symlink_traversal_overlap_and_scratch_recursion_rejected`、`test_same_run_owned_paths_allowed_but_other_run_rejected`、`test_historical_vault_mismatch_reports_no_values`、`test_wordpress_core_precedes_restored_custom_files`、`test_mealie_prompts_not_overwritten_after_restore`、`test_empty_required_directory_is_preserved`。
+- [x] **2. Run RED**：分別執行 `python -m unittest discover -s tests -p test_recovery_files.py -v` 及 `test_recovery_secrets.py`。
+- [x] **3. Implement registry and file install**：照 spec §7 列完全部來源 ID。file 與 directory artifacts 分開處理，必需／optional_absent 來自 registry；未知 source 只留 scratch。測試 registry 目的地與現有 storage_permissions／Compose volume 定義相容，避免另維護一份會漂移的硬編碼路徑。Compose/Caddy/DDNS 不整份照搬；比對白名單 secrets 後以 target templates render。n8n key 取同一快照檔案。WordPress core 從匹配 image 的 `/usr/src/wordpress` 取到 run-owned scratch，再 overlay 自訂內容；不執行 WordPress entrypoint／下載最新 core。
+- [x] **4. Verify GREEN**：檔案／secret 測試均通過，錯誤訊息、captured subprocess argv、report 不含 fixture secrets。以兩個不同 UID/GID profiles 檢查只處理選定服務路徑；SELinux 行為留 Task 9 真實 VM 驗證。
+- [x] **5. Commit**：`feat: map recovery artifacts and validate historical secrets`。
 
 ## Task 5: Add standalone Ansible entry, preflight and resumable run state
 
