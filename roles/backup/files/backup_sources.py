@@ -13,23 +13,7 @@ import time
 import urllib.request
 
 
-class BackupError(Exception):
-    """A sanitized operational failure; never include raw subprocess output."""
-
-
-def safe_id(value):
-    if not isinstance(value, str) or not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}", value):
-        raise BackupError("invalid identifier")
-    return value
-
-
-def checked_path(value):
-    path = Path(value)
-    if not path.is_absolute() or ".." in path.parts:
-        raise BackupError("invalid absolute path")
-    if any(parent.is_symlink() for parent in (path, *path.parents)):
-        raise BackupError("symlink source or destination rejected")
-    return path
+from backup_common import BackupError, checked_path, safe_id
 
 
 def command(args, *, output=None, input_file=None, timeout=1200):

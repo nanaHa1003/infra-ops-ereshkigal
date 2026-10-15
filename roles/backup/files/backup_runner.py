@@ -15,22 +15,9 @@ import sys
 import urllib.parse
 import urllib.request
 
-from backup_sources import BackupError, checked_path, prepare_sources, safe_id
-
-
-class ResticError(BackupError):
-    """Expose status and fixed error categories, never subprocess stderr."""
-    def __init__(self, returncode, stderr):
-        self.returncode = returncode
-        message = "restic operation failed (exit " + str(returncode) + ")"
-        lowered = stderr.lower()
-        if b"access denied" in lowered or b"accessdenied" in lowered:
-            message += ": S3 AccessDenied; check key bucket/prefix and capabilities"
-        elif returncode == 12:
-            message += ": repository password rejected"
-        elif returncode == 10:
-            message += ": repository not found"
-        super().__init__(message)
+from backup_common import BackupError, ResticError, checked_path, restic, safe_id
+from backup_sources import prepare_sources
+from backup_manifest import build_manifest
 
 
 def validate_config(config):
@@ -99,24 +86,6 @@ def notify(job, event):
         return False
 
 
-def restic(repo, args, *, cwd=None, timeout=3600, capture=False):
-    # Keep credentials out of argv; replace inherited provider credentials.
-    env = {key: value for key, value in os.environ.items()
-           if not key.startswith(("AWS_", "RESTIC_", "B2_"))}
-    env.update({"RESTIC_REPOSITORY": repo["url"], "RESTIC_PASSWORD": repo["restic_password"],
-                "AWS_ACCESS_KEY_ID": repo["access_key_id"], "AWS_SECRET_ACCESS_KEY": repo["secret_access_key"]})
-    if os.environ.get("RESTIC_CACHE_DIR"):
-        env["RESTIC_CACHE_DIR"] = os.environ["RESTIC_CACHE_DIR"]
-    try:
-        result = subprocess.run(["restic", *args], env=env, cwd=cwd, stdout=subprocess.PIPE if capture else subprocess.DEVNULL,
-                                stderr=subprocess.PIPE, timeout=timeout, check=False)
-    except (OSError, subprocess.TimeoutExpired) as exc:
-        raise BackupError("restic unavailable or timed out") from exc
-    if result.returncode:
-        raise ResticError(result.returncode, result.stderr)
-    return result.stdout or b""
-
-
 def job_scope(config, job_id, pending=False):
     tag = ("homelab-pending:" if pending else "homelab-config-db:") + job_id
     return ["--host", config["host"], "--tag", tag,
@@ -139,8 +108,8 @@ def run_job(config, job_id):
                     shutil.rmtree(stage)
                 delivered = notify(job, "start")
                 metadata = prepare_sources(job["sources"], stage)
-                (stage / "manifest.json").write_text(json.dumps({"completed_exports_at": datetime.now(timezone.utc).isoformat(),
-                                                                "sources": metadata}, indent=2))
+                (stage / "manifest.json").write_text(json.dumps(
+                    build_manifest(stage, {**config, "job_id": job_id}, metadata), indent=2))
                 repo = config["repositories"][job["repository"]]
                 result = restic(repo, ["backup", "--json", "--host", config["host"],
                                       "--tag", "homelab-pending:" + job_id, "."], cwd=stage, capture=True)

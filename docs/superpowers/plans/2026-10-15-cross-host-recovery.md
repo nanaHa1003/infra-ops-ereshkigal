@@ -87,11 +87,11 @@
 
 **Interfaces:** `backup_common.restic(repo, args, *, cwd=None, timeout=3600, capture=False) -> bytes` 等同現有行為；原模組保留 import/re-export 以相容呼叫者及 monkeypatch boundary。`backup_manifest.build_manifest(stage: Path, config: dict, exports: dict) -> dict` 產生 schema_version=2，保留原 sources metadata。config 新增 `deployment`（revision/dirty/vault_revision）及 job 的 `service_projects`（service→Compose project 名稱 map）；Ansible vars 對應 `backup_deployment_metadata` 及 job.service_projects。`capture_image_metadata(container: str) -> dict` 只 inspect Image/RepoDigests/architecture，絕不輸出 Config.Env。依所選 project labels 找出 container，不掃描與此 job 無關的容器；producer 不依賴 PyYAML。
 
-- [ ] **1. Write failing tests**：`test_v2_manifest_records_artifacts_and_omits_secrets`、`test_manifest_tracks_all_service_images_not_only_database`、`test_missing_registry_digest_is_reported_not_replaced_by_latest`、`test_backup_does_not_require_server_git_checkout`。fixtures 為假 PG metadata、假 app Compose 與普通設定檔；stage 中 artifacts 的實際 hashes 必須與 manifest 一致。
-- [ ] **2. Run RED**：`python -m unittest discover -s tests -p test_backup_manifest.py -v`。
-- [ ] **3. Implement producer and transport extraction**：manifest 寫出前收集 stage artifacts，manifest 本身不計入自身 hash。部署 revision／dirty／Vault revision 由 Ansible 控制端提供，不能用伺服器 git。PG/MariaDB 記錄 engine/version/roles/extensions、可取得的大小與一致性限制；查詢代表性 counts 綁定版本化服務 registry，無法取得時明記 unavailable，不編造快照時精確筆數。SQLite count 應從匯出 DB 查詢；其他獨立查詢記錄時間，不能假設與 dump 同一交易。
-- [ ] **4. Verify GREEN**：全套 backup tests、真實 restic round trip、`molecule test -s backup`。原 init/ensure-init、鎖、pending→completed、失敗清理與 Healthchecks 行為不變；新腳本一併以 root0700 安裝。
-- [ ] **5. Commit**：`feat: record versioned recovery metadata in backups`。本 task 完成不代表可部署到正式主機；部署另列驗收。
+- [x] **1. Write failing tests**：`test_v2_manifest_records_artifacts_and_omits_secrets`、`test_manifest_tracks_all_service_images_not_only_database`、`test_missing_registry_digest_is_reported_not_replaced_by_latest`、`test_backup_does_not_require_server_git_checkout`。fixtures 為假 PG metadata、假 app Compose 與普通設定檔；stage 中 artifacts 的實際 hashes 必須與 manifest 一致。
+- [x] **2. Run RED**：`python -m unittest discover -s tests -p test_backup_manifest.py -v`。
+- [x] **3. Implement producer and transport extraction**：manifest 寫出前收集 stage artifacts，manifest 本身不計入自身 hash。部署 revision／dirty／Vault revision 由 Ansible 控制端提供，不能用伺服器 git。PG/MariaDB 記錄 engine/version/roles/extensions、可取得的大小與一致性限制；查詢代表性 counts 綁定版本化服務 registry，無法取得時明記 unavailable，不編造快照時精確筆數。SQLite count 應從匯出 DB 查詢；其他獨立查詢記錄時間，不能假設與 dump 同一交易。
+- [x] **4. Verify GREEN**：全套 backup tests、真實 restic round trip、`molecule test -s backup`。原 init/ensure-init、鎖、pending→completed、失敗清理與 Healthchecks 行為不變；新腳本一併以 root0700 安裝。
+- [x] **5. Commit**：`feat: record versioned recovery metadata in backups`。本 task 完成不代表可部署到正式主機；部署另列驗收。
 
 ## Task 3: Select cross-host snapshots and normalize legacy/v2 manifests
 
