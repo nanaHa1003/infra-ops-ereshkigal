@@ -205,7 +205,7 @@ def _restore_postgres(spec, state):
     pg_sql(spec, "REASSIGN OWNED BY " + identifier(spec["import_role"]) + " TO " + identifier(spec["app_user"]) + ";", spec["database"])
     pg_sql(spec, "DROP ROLE " + identifier(spec["import_role"]) + ";")
     if spec["preload_libraries"]:
-        pg_sql(spec, "ALTER SYSTEM SET shared_preload_libraries = " + literal(",".join(spec["preload_libraries"])) + ";")
+        pg_sql(spec, "ALTER SYSTEM SET shared_preload_libraries = " + ", ".join(literal(value) for value in spec["preload_libraries"]) + ";")
     installed = json.loads(pg_sql(spec, "SELECT json_object_agg(extname,extversion) FROM pg_extension;", spec["database"]))
     for extension in spec["source"].get("extensions", []):
         if installed.get(extension["name"]) != extension["version"]:

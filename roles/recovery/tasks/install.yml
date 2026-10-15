@@ -41,7 +41,7 @@
     owner: root
     group: root
     mode: '0700'
-  loop: [recovery_runner.py, recovery_models.py, recovery_manifest.py, recovery_files.py, recovery_state.py, recovery_databases.py, recovery_verify.py]
+  loop: [recovery_runner.py, recovery_models.py, recovery_manifest.py, recovery_files.py, recovery_state.py, recovery_databases.py, recovery_verify.py, recovery_activate.py]
 
 - name: Install shared backup modules without backup role side effects
   ansible.builtin.copy:

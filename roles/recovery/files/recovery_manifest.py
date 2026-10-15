@@ -112,7 +112,7 @@ def normalize_manifest(raw: dict, selection: dict, legacy_profile: dict) -> dict
         limitations.append("legacy_snapshot")
     return {"schema_version": raw.get("schema_version", 1), "selection": dict(selection),
             "services": sorted(images), "sources": sources, "images": images,
-            "deployment": raw.get("deployment", {}), "limitations": limitations}
+            "deployment": raw.get("deployment", {}), "domain": legacy_profile.get("domain") if legacy else raw.get("domain"), "limitations": limitations}
 
 
 def validate_compatibility(model: dict, profile: dict) -> list[dict]:

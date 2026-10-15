@@ -1,4 +1,5 @@
 {
+  "activation": {{ {"services": recover_activate_services | default([]), "old_host_fenced": recover_old_host_fenced | default(false) | bool, "fencing_reference": recover_fencing_reference | default(""), "cutover_complete": recover_cutover_complete | default(false) | bool, "enable_ddns": recover_enable_ddns | default(false) | bool, "accepted_limitations": recover_accept_limited | default({}), "media_evidence": recover_media_evidence | default({})} | to_json }},
   "source": {{ recover_source | to_json }},
   "repository": {{ recover_repositories[recover_source.repository] | combine(vault_secrets.backup.repositories[recover_source.repository]) | to_json }},
   "services": {{ recover_services | to_json }},

@@ -82,6 +82,29 @@ class RealDatabaseRecovery(unittest.TestCase):
             self.assertEqual(restore_database(service, model, target, state), result)
             stop_recovery_databases(state)
             self.assertTrue(any(data.iterdir()))
+            # Handoff reuses persistent data after validation DB is stopped.
+            production = 'recovery-handoff-' + run
+            args=['run','-d','--name',production,'--network','none','--volume',str(data)+':'+recovered['mount']+':Z']
+            args += ['-e','POSTGRES_PASSWORD=unused','-e','POSTGRES_USER=app','-e','POSTGRES_DB=appdb',image] if postgres else ['-e','MARIADB_ROOT_PASSWORD=unused',image,'--event-scheduler=OFF']
+            if extension: args += ['postgres','-c','config_file=/etc/postgresql/postgresql.conf']
+            try:
+                _docker(args,timeout=180)
+                for _ in range(120):
+                    try:
+                        if postgres:
+                            value=_docker(['exec',production,'psql','-U','app','-d','appdb','-Atc','SELECT name FROM parent WHERE id=1;']).decode().strip()
+                        else:
+                            value=_docker(['exec','-e','MYSQL_PWD',production,'mariadb','-uapp','--host=127.0.0.1','--database=appdb','--batch','--skip-column-names','--execute=SELECT name FROM parent WHERE id=1;'],env={'MYSQL_PWD':'fake-app'}).decode().strip()
+                        break
+                    except BackupError:
+                        if _docker(['inspect','--format','{{.State.Running}}',production]).decode().strip() != 'true':
+                            self.fail('handoff database exited during startup')
+                        time.sleep(1)
+                else: self.fail('handoff database not ready')
+                self.assertEqual(value,'fixture' if postgres else 'UPDATED')
+                if extension:
+                    self.assertIn('1',_docker(['exec',production,'psql','-U','app','-d','appdb','-Atc','SELECT count(*) FROM embedding;']).decode())
+            finally: _docker(['rm','-f','-v',production])
         finally:
             if source_name:
                 _docker(['rm', '-f', '-v', source_name])

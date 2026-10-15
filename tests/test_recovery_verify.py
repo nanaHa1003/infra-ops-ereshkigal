@@ -59,3 +59,38 @@ class RecoveryWiring(unittest.TestCase):
         with patch.object(runner,'save_state'), patch.object(runner,'write_report'), patch.object(runner,'restore_database'), patch.object(runner,'verify_service',side_effect=runner.BackupError('fixture fail')), patch.object(runner,'stop_recovery_databases') as stop:
             with self.assertRaises(runner.BackupError): runner.restore_and_verify(config,plan,state,False)
         stop.assert_called_once_with(state)
+
+class Cancellation(unittest.TestCase):
+    def test_termination_runs_database_cleanup(self):
+        import subprocess,os,signal,time
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary).resolve()
+            script="""
+import sys,time
+from pathlib import Path
+from unittest.mock import patch
+import recovery_runner as runner
+runner.install_signal_handlers()
+root=Path(sys.argv[1])
+state={'run_id':'fixture','phase':'prepared','services':{'auth':{'phase':'prepared'}},'_run_root':str(root),'activation':{'services_started':[]}}
+config={'services':['auth'],'target':{},'registry':{},'secrets':{}}
+def importing(*args):
+ (root/'started').touch(); time.sleep(30)
+def stopped(*args): (root/'stopped').touch()
+try:
+ with patch.object(runner,'restore_database',side_effect=importing),patch.object(runner,'stop_recovery_databases',side_effect=stopped):
+  runner.restore_and_verify(config,{'model':{},'image_variables':{}},state,False)
+except runner.BackupError: sys.exit(1)
+"""
+            env={**os.environ,'PYTHONPATH':os.pathsep.join([str(ROOT/'roles/recovery/files'),str(ROOT/'roles/backup/files')])}
+            process=subprocess.Popen([sys.executable,'-c',script,str(root)],stdout=subprocess.PIPE,stderr=subprocess.PIPE,env=env)
+            try:
+                for _ in range(100):
+                    if (root/'started').exists() or process.poll() is not None: break
+                    time.sleep(.02)
+                self.assertTrue((root/'started').exists(),'import was not reached')
+                process.send_signal(signal.SIGTERM)
+                process.communicate(timeout=5)
+                self.assertTrue((root/'stopped').exists(),'termination skipped database stop')
+            finally:
+                if process.poll() is None: process.kill(); process.communicate()

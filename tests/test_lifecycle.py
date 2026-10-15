@@ -204,6 +204,11 @@ class LifecycleContracts(unittest.TestCase):
         config = task["community.docker.docker_compose_v2"]
         self.assertEqual(render(config.get("recreate", "auto"), context), "always")
 
+    def test_caddy_start_does_not_require_a_prepare_result(self):
+        tasks=read_yaml('roles/proxy/tasks/start.yml')
+        config=next(task['community.docker.docker_compose_v2'] for task in tasks if task['name']=='Start/Update Caddy reverse proxy')
+        self.assertEqual(render(config['recreate'],{'proxy_force_restart':False}),'auto')
+
     def test_rendered_secrets_are_private_and_excluded_from_diffs(self):
         for path in (ROOT / "roles").glob("*/tasks/main.yml"):
             for task in read_yaml(path):

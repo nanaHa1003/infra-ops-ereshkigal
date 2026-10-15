@@ -87,6 +87,6 @@ def build_manifest(stage: Path, config: dict, exports: dict) -> dict:
         if not images[service] or any(not item.get("registry_digests") for item in images[service]):
             limitations.append("image_digest_unavailable:" + service)
     return {"schema_version": 2, "completed_exports_at": datetime.now(timezone.utc).isoformat(),
-            "host": config["host"], "job": job_id, "deployment": deployment,
+            "host": config["host"], "job": job_id, "domain": config.get("domain"), "deployment": deployment,
             "sources": sources, "images": images, "limitations": limitations,
             "excluded": ["photos", "videos", "downloads", "attachments", "raw_database_volumes"]}

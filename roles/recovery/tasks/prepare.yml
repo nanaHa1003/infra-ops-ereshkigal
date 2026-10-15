@@ -1,8 +1,7 @@
 ---
 - name: Read pinned service image plan
   ansible.builtin.set_fact:
-    recovery_pinned_plan: '{{ lookup(''ansible.builtin.file'', recover_plan_file)
-      | from_json }}'
+    recovery_pinned_plan: '{{ lookup(''ansible.builtin.file'', recover_plan_file) | from_json }}'
   no_log: true
 - name: Protect replacement storage and stack roots
   ansible.builtin.file:
@@ -27,86 +26,82 @@
     target: '{{ storage_root }}(/.*)?'
     setype: container_file_t
     state: present
-- name: Prepare pinned proxy files
+- name: Prepare shared networks without starting proxies
   ansible.builtin.include_role:
     name: proxy
-    tasks_from: prepare.yml
+    tasks_from: networks.yml
+- name: Start pinned proxy service
+  ansible.builtin.include_role:
+    name: proxy
+    tasks_from: start-caddy.yml
   vars:
-    proxy_caddy_image: '{{ recovery_pinned_plan.image_variables.proxy_caddy_image
-      }}'
-    proxy_socket_proxy_image: '{{ recovery_pinned_plan.image_variables.proxy_socket_proxy_image
-      }}'
-  when: '''proxy'' in recover_services'
-- name: Prepare pinned auth files
+    proxy_caddy_image: '{{ recovery_pinned_plan.image_variables.proxy_caddy_image }}'
+    proxy_socket_proxy_image: '{{ recovery_pinned_plan.image_variables.proxy_socket_proxy_image }}'
+  when: recovery_activation_service == 'proxy'
+- name: Start pinned auth service
   ansible.builtin.include_role:
     name: auth
-    tasks_from: prepare.yml
+    tasks_from: start.yml
   vars:
-    auth_postgres_image: '{{ recovery_pinned_plan.image_variables.auth_postgres_image
-      }}'
+    auth_postgres_image: '{{ recovery_pinned_plan.image_variables.auth_postgres_image }}'
     auth_redis_image: '{{ recovery_pinned_plan.image_variables.auth_redis_image }}'
-    auth_authentik_image: '{{ recovery_pinned_plan.image_variables.auth_authentik_image
-      }}'
-  when: '''auth'' in recover_services'
-- name: Prepare pinned wordpress files
+    auth_authentik_image: '{{ recovery_pinned_plan.image_variables.auth_authentik_image }}'
+  when: recovery_activation_service == 'auth'
+- name: Start pinned wordpress service
   ansible.builtin.include_role:
     name: wordpress
-    tasks_from: prepare.yml
+    tasks_from: start.yml
   vars:
+    wordpress_mariadb_auto_upgrade: false
     wordpress_image: '{{ recovery_pinned_plan.image_variables.wordpress_image }}'
-    wordpress_mariadb_image: '{{ recovery_pinned_plan.image_variables.wordpress_mariadb_image
-      }}'
-  when: '''wordpress'' in recover_services'
-- name: Prepare pinned pinchflat files
+    wordpress_mariadb_image: '{{ recovery_pinned_plan.image_variables.wordpress_mariadb_image }}'
+  when: recovery_activation_service == 'wordpress'
+- name: Start pinned pinchflat service
   ansible.builtin.include_role:
     name: pinchflat
-    tasks_from: prepare.yml
+    tasks_from: start.yml
   vars:
     pinchflat_image: '{{ recovery_pinned_plan.image_variables.pinchflat_image }}'
-  when: '''pinchflat'' in recover_services'
-- name: Prepare pinned immich files
+  when: recovery_activation_service == 'pinchflat'
+- name: Start pinned immich service
   ansible.builtin.include_role:
     name: immich
-    tasks_from: prepare.yml
+    tasks_from: start.yml
   vars:
-    immich_server_image: '{{ recovery_pinned_plan.image_variables.immich_server_image
-      }}'
+    immich_server_image: '{{ recovery_pinned_plan.image_variables.immich_server_image }}'
     immich_ml_image: '{{ recovery_pinned_plan.image_variables.immich_ml_image }}'
-    immich_postgres_image: '{{ recovery_pinned_plan.image_variables.immich_postgres_image
-      }}'
-    immich_redis_image: '{{ recovery_pinned_plan.image_variables.immich_redis_image
-      }}'
-  when: '''immich'' in recover_services'
-- name: Prepare pinned mealie files
+    immich_postgres_image: '{{ recovery_pinned_plan.image_variables.immich_postgres_image }}'
+    immich_redis_image: '{{ recovery_pinned_plan.image_variables.immich_redis_image }}'
+  when: recovery_activation_service == 'immich'
+- name: Start pinned mealie service
   ansible.builtin.include_role:
     name: mealie
-    tasks_from: prepare.yml
+    tasks_from: start.yml
   vars:
     mealie_image: '{{ recovery_pinned_plan.image_variables.mealie_image }}'
-  when: '''mealie'' in recover_services'
-- name: Prepare pinned homepage files
+  when: recovery_activation_service == 'mealie'
+- name: Start pinned homepage service
   ansible.builtin.include_role:
     name: homepage
-    tasks_from: prepare.yml
+    tasks_from: start.yml
   vars:
     homepage_image: '{{ recovery_pinned_plan.image_variables.homepage_image }}'
-  when: '''homepage'' in recover_services'
-- name: Prepare pinned n8n files
+  when: recovery_activation_service == 'homepage'
+- name: Start pinned n8n service
   ansible.builtin.include_role:
     name: n8n
-    tasks_from: prepare.yml
+    tasks_from: start.yml
   vars:
     n8n_image: '{{ recovery_pinned_plan.image_variables.n8n_image }}'
-    n8n_postgres_image: '{{ recovery_pinned_plan.image_variables.n8n_postgres_image
-      }}'
-  when: '''n8n'' in recover_services'
-- name: Prepare pinned aria2 files
+    n8n_postgres_image: '{{ recovery_pinned_plan.image_variables.n8n_postgres_image }}'
+  when: recovery_activation_service == 'n8n'
+- name: Start pinned aria2 service
   ansible.builtin.include_role:
     name: aria2
-    tasks_from: prepare.yml
+    tasks_from: start.yml
   vars:
     aria2_image: '{{ recovery_pinned_plan.image_variables.aria2_image }}'
-  when: '''aria2'' in recover_services'
+  when: recovery_activation_service == 'aria2'
 - name: Apply replacement SELinux labels
   ansible.builtin.command:
     argv:

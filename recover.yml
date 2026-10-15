@@ -15,7 +15,7 @@
     - name: Validate requested recovery phase
       ansible.builtin.assert:
         that:
-          - recover_phase | default('plan') in ['plan', 'restore', 'verify', 'cleanup-preview', 'cleanup']
+          - recover_phase | default('plan') in ['plan', 'restore', 'verify', 'cleanup-preview', 'cleanup', 'activate']
         fail_msg: "Unsupported recovery phase."
         quiet: true
       tags: [always]

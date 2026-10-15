@@ -1,0 +1,17 @@
+---
+- name: Start/Update Caddy reverse proxy
+  community.docker.docker_compose_v2:
+    project_src: '{{ stack_root }}/proxy'
+    project_name: proxy
+    files:
+      - docker-compose.yml
+      - ../docker-proxy/docker-compose.yml
+    services:
+      - caddy
+    dependencies: false
+    state: present
+    pull: '{{ ''always'' if pull_images | default(false) | bool else ''missing'' }}'
+    recreate: '{{ ''always'' if (proxy_caddy_config | default({})).changed | default(false) or proxy_force_restart | bool
+      else ''auto'' }}'
+  tags:
+    - molecule-notest

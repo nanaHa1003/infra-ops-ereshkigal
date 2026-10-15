@@ -1,6 +1,7 @@
 {
   "state_root": {{ backup_state_root | to_json }},
   "host": {{ inventory_hostname | to_json }},
+  "domain": {{ domain | default(none) | to_json }},
   "deployment": {{ backup_deployment_metadata | to_json }},
   "repositories": {
 {% for name, repository in backup_repositories.items() %}

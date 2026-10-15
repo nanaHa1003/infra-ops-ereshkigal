@@ -25,7 +25,9 @@ services:
       - MYSQL_USER={{ vault_secrets.wordpress.mysql_user }}
       - MYSQL_PASSWORD={{ vault_secrets.wordpress.mysql_password }}
       - MYSQL_RANDOM_ROOT_PASSWORD="1"
+{% if wordpress_mariadb_auto_upgrade | default(true) | bool %}
       - MARIADB_AUTO_UPGRADE="1"
+{% endif %}
       - TZ={{ timezone }}
     networks:
       - backend

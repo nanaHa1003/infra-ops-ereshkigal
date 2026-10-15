@@ -7,6 +7,7 @@ import os
 import platform
 from pathlib import Path, PurePosixPath
 import secrets
+import signal
 import shutil
 import sys
 
@@ -21,6 +22,7 @@ from recovery_files import build_mappings, compare_recovery_secrets, install_art
 from recovery_state import PHASES, advance_service, cleanup_preview, open_run, run_lock, save_state
 
 from recovery_databases import restore_database, stop_recovery_databases, _docker, running_volume_users, wait_database
+from recovery_activate import begin_activation, finish_activation, check_activation_ready, validate_activation_environment
 from recovery_verify import verify_service, write_report
 
 IMAGE_VARIABLES = {
@@ -248,15 +250,23 @@ def restore_and_verify(config, plan, state, verify_only):
         stop_recovery_databases(state)
 
 
+def install_signal_handlers():
+    def interrupted(_number,_frame):
+        raise BackupError('recovery interrupted')
+    for number in (signal.SIGTERM,signal.SIGHUP,signal.SIGINT): signal.signal(number,interrupted)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     inputs = parser.add_mutually_exclusive_group(required=True)
     inputs.add_argument("--config")
     inputs.add_argument("--config-stdin", action="store_true")
-    parser.add_argument("operation", choices=["plan", "validate-plan", "download", "restore", "verify", "cleanup-preview", "cleanup"])
+    parser.add_argument("operation", choices=["plan", "validate-plan", "download", "restore", "verify", "cleanup-preview", "cleanup", "activation-begin", "activation-ready", "activation-finish"])
     parser.add_argument("--run")
+    parser.add_argument("--service")
     args = parser.parse_args(argv)
     os.umask(0o077)
+    install_signal_handlers()
     try:
         if args.config_stdin:
             config = json.load(sys.stdin)
@@ -291,6 +301,20 @@ def main(argv=None):
                 print(json.dumps(restore_and_verify(config, plan, state, args.operation == "verify")))
                 return 0
             state = open_run(plan, Path(config["state_root"]))
+            if args.operation.startswith('activation-'):
+                options=config['activation']; selected=options['services']
+                validate_activation_environment(config,plan,state,selected)
+                if args.operation=='activation-begin':
+                    result=begin_activation(state,selected,options.get('old_host_fenced') is True,options.get('fencing_reference'))
+                elif args.operation=='activation-ready':
+                    if args.service not in state['activation']['services_started']: raise BackupError('service was not authorized for activation')
+                    result=check_activation_ready([args.service],config['target'])
+                    state['activation'].setdefault('readiness',{}).update(result)
+                    save_state(state)
+                else:
+                    result=finish_activation(state,selected,config['target'],options.get('cutover_complete') is True,options.get('enable_ddns') is True)
+                print(json.dumps(result))
+                return 0
             preview = cleanup_preview(state)
             if args.operation == "cleanup-preview":
                 print(json.dumps({"run_id": state["run_id"], "resources": preview}))
