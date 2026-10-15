@@ -17,8 +17,11 @@ from backup_common import BackupError, checked_path, restic, safe_id
 from backup_sources import command
 from recovery_manifest import normalize_manifest, select_snapshot, validate_compatibility
 from recovery_models import relative_artifact, source_scope
-from recovery_files import build_mappings, compare_recovery_secrets, validate_artifacts, validate_targets
+from recovery_files import build_mappings, compare_recovery_secrets, install_artifacts, validate_artifacts, validate_targets
 from recovery_state import PHASES, advance_service, cleanup_preview, open_run, run_lock, save_state
+
+from recovery_databases import restore_database, stop_recovery_databases, _docker, running_volume_users, wait_database
+from recovery_verify import verify_service, write_report
 
 IMAGE_VARIABLES = {
     "proxy": {"caddy": "proxy_caddy_image", "docker-ro": "proxy_socket_proxy_image", "docker-rw": "proxy_socket_proxy_image"},
@@ -65,7 +68,7 @@ def profile_payload(config):
     return {"source": {key: config["source"][key] for key in ("repository", "host", "job", "staging_path")},
             "repository_url": config["repository"]["url"], "services": config["services"],
             "state_root": config["state_root"], "registry": config.get("registry", {}),
-            "permissions": target.get("permissions", []),
+            "permissions": target.get("permissions", []), "database_options": target.get("database_options", {}),
             "target": {key: target[key] for key in ("host", "machine_id", "storage_root", "stack_root", "storage_mount", "min_free_bytes", "distribution", "release", "architecture")},
             "legacy_profile": config.get("legacy_profile", {}), "vault_revision": config.get("vault_revision"), "domain": config.get("domain")}
 
@@ -205,6 +208,46 @@ def download(config, plan):
     return state
 
 
+def restore_and_verify(config, plan, state, verify_only):
+    if state['activation']['services_started']: raise BackupError('data verification refused after activation')
+    if verify_only and PHASES.index(state['phase']) < PHASES.index('imported'):
+        raise BackupError('verification requires completed imports')
+    scratch = Path(state['_run_root']) / 'scratch'
+    target = {**config['target'], 'registry':config['registry'], 'secrets':config['secrets'], 'services':config['services'],
+        'run_id':state.get('run_id'), 'scratch_root':str(scratch), 'image_variables':plan['image_variables'], 'wordpress_core_image':plan['image_variables'].get('wordpress_image')}
+    model = {**plan['model'], 'services':config['services']}
+    results=[]
+    try:
+        if state['phase']=='downloaded':
+            install_artifacts(build_mappings(model,target,config['registry']),scratch,state)
+            for service in config['services']: advance_service(state,service,'prepared',{})
+        if state['phase'] not in ('prepared','imported','verified'): raise BackupError('restore phase not ready')
+        if not verify_only:
+            for service in config['services']: restore_database(service,model,target,state)
+        for runtime in state.get('databases',{}).values():
+            owner=json.loads(_docker(['inspect','--format','{{json (index .Config.Labels "homelab.recovery.run")}}',runtime['name']]))
+            if owner!=state['run_id']: raise BackupError('database ownership mismatch')
+            users=running_volume_users(runtime['data_root'])
+            if users and any(value not in _docker(['ps','-q','--filter','name=^'+runtime['name']+'$']).decode().split() for value in users):
+                raise BackupError('database volume already in use')
+            _docker(['start',runtime['name']]); wait_database(runtime)
+        for service in config['services']:
+            try:
+                result=verify_service(service,model,target,state)
+            except Exception:
+                failure={'service':service,'status':'failed','checks':{},'limitations':['verification_failed'],'activation_blockers':['verification_failed']}
+                state['results'][service]=failure
+                save_state(state)
+                write_report(state,results+[failure],Path(state['_run_root'])/'report.json')
+                raise BackupError('service verification failed; inspect protected report')
+            advance_service(state,service,'verified',result)
+            results.append(result)
+        write_report(state,results,Path(state['_run_root'])/'report.json')
+        return {'run_id':state['run_id'],'phase':state['phase'],'report':str(Path(state['_run_root'])/'report.json')}
+    finally:
+        stop_recovery_databases(state)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     inputs = parser.add_mutually_exclusive_group(required=True)
@@ -244,7 +287,9 @@ def main(argv=None):
                 print(json.dumps({"run_id": state["run_id"], "phase": state["phase"]}))
                 return 0
             if args.operation in ("restore", "verify"):
-                raise BackupError("database recovery adapters are not yet available")
+                state = open_run(plan, Path(config["state_root"]))
+                print(json.dumps(restore_and_verify(config, plan, state, args.operation == "verify")))
+                return 0
             state = open_run(plan, Path(config["state_root"]))
             preview = cleanup_preview(state)
             if args.operation == "cleanup-preview":

@@ -22,7 +22,7 @@ def main():
         mount = subprocess.check_output([engine, 'volume', 'inspect', name, '--format', '{{.Mountpoint}}'], text=True).strip()
         run('create', '--name', name, '--security-opt', 'label=disable', '-v', socket+':/var/run/docker.sock', '-v', name+':'+mount,
             '-e', 'DOCKER_API_VERSION=1.41', '-e', 'HOMELAB_RECOVERY_INTEGRATION=1', '-e', 'HOMELAB_RECOVERY_FIXTURE_ROOT='+mount,
-            'docker:27-cli', 'sh', '-c', 'apk add --no-cache python3 py3-yaml >/dev/null && python3 -m unittest discover -s /code/tests -p test_recovery_database_integration.py -v', stdout=subprocess.DEVNULL)
+            'docker:27-cli', 'sh', '-c', 'apk add --no-cache python3 py3-yaml >/dev/null && python3 -m unittest discover -s /code/tests -p 'test_recovery_*integration.py' -v', stdout=subprocess.DEVNULL)
         with tempfile.TemporaryDirectory() as temporary:
             code = Path(temporary) / 'code'
             for role in ('backup', 'recovery'):

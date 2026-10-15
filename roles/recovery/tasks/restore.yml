@@ -15,7 +15,8 @@
   no_log: true
 
 - name: Prepare pinned service definitions without starting them
-  ansible.builtin.import_tasks: prepare.yml
+  ansible.builtin.include_tasks: prepare.yml
+  when: (recovery_download_result.stdout | from_json).phase == "downloaded"
 
 - name: Restore selected service data
   ansible.builtin.command:

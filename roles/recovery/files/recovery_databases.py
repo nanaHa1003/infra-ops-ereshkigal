@@ -296,7 +296,11 @@ def restore_database(service: str, model: dict, target: dict, state: dict) -> di
 
 
 def stop_recovery_databases(state: dict) -> None:
-    for runtime in state.get("databases", {}).values():
+    runtimes = list(state.get("databases", {}).values())
+    if not runtimes: return
+    existing = set(_docker(["ps", "-a", "--format", "{{.Names}}"]).decode().split())
+    for runtime in runtimes:
+        if runtime["name"] not in existing: continue
         owner = json.loads(_docker(["inspect", "--format", '{{json (index .Config.Labels "homelab.recovery.run")}}', runtime["name"]]))
         if owner != state["run_id"]: raise BackupError("database container ownership mismatch")
         _docker(["stop", "--time", "30", runtime["name"]], timeout=60)

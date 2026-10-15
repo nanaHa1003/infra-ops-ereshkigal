@@ -18,6 +18,7 @@
     "storage_root": {{ storage_root | to_json }},
     "stack_root": {{ stack_root | to_json }},
     "storage_mount": {{ recover_storage_mount | to_json }},
+    "database_options": {{ recover_database_options | default({}) | to_json }},
     "permissions": {{ recovery_storage_permissions | to_json }},
     "min_free_bytes": {{ recover_min_free_bytes | int | to_json }},
     "probe": {{ recovery_probe | combine({'package_conflicts': ansible_facts.packages.keys() | list | intersect(['podman','podman-docker','buildah','skopeo']) if ansible_facts.packages is defined else []}) | to_json }}

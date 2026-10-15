@@ -58,6 +58,13 @@ recovery_service_registry:
         layout: reference
         required: true
     storage_prefix: authentik
+    verification:
+      image_pattern: :2026\.5\.
+      tables:
+        users: authentik_core_user
+        applications: authentik_core_application
+        providers: authentik_core_provider
+        flows: authentik_flows_flow
   wordpress:
     sources:
       wordpress-db:
@@ -141,6 +148,11 @@ recovery_service_registry:
         layout: reference
         required: true
     storage_prefix: pinchflat
+    verification:
+      image_pattern: :v2026\.
+      tables:
+        sources: sources
+        profiles: media_profiles
   immich:
     sources:
       immich-db:
@@ -156,6 +168,12 @@ recovery_service_registry:
         layout: reference
         required: true
     storage_prefix: immich
+    verification:
+      image_pattern: :v2\.
+      tables:
+        assets: asset
+        users: user
+        albums: album
   mealie:
     sources:
       mealie-db:
@@ -179,6 +197,11 @@ recovery_service_registry:
         layout: reference
         required: true
     storage_prefix: mealie
+    verification:
+      image_pattern: :v3\.
+      tables:
+        recipes: recipes
+        users: users
   homepage:
     sources:
       homepage-config:
@@ -217,6 +240,11 @@ recovery_service_registry:
         layout: reference
         required: true
     storage_prefix: n8n
+    verification:
+      image_pattern: :2\.28\.
+      tables:
+        workflows: workflow_entity
+        credentials: credentials_entity
   aria2:
     sources:
       aria2-config:
@@ -245,7 +273,7 @@ recovery_service_registry:
         required: true
       aria2-file-filter:
         kind: files
-        target: aria2/config/文件过滤.conf
+        target: "aria2/config/\u6587\u4EF6\u8FC7\u6EE4.conf"
         layout: file
         owner: 1000
         group: 1000
