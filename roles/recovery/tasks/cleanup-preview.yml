@@ -1,0 +1,20 @@
+---
+- name: Refresh protected recovery configuration
+  ansible.builtin.import_tasks: config.yml
+
+- name: Preview owned recovery resources
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/python3
+      - "{{ recovery_program_dir }}/recovery_runner.py"
+      - --config
+      - "{{ recovery_config_dir }}/config.json"
+      - cleanup-preview
+      - --run
+      - "{{ recover_run_id }}"
+  register: recovery_cleanup_preview
+  changed_when: false
+
+- name: Show recovery cleanup preview
+  ansible.builtin.debug:
+    msg: "{{ recovery_cleanup_preview.stdout | from_json }}"

@@ -37,6 +37,21 @@ class RecoveryRestic(unittest.TestCase):
                 selection = module.select_snapshot(repo, scope)
                 expected = next(item["id"] for item in before if item["hostname"] == "old.example" and item["tags"] == ["homelab-config-db:database"])
                 self.assertEqual(selection["snapshot_id"], expected)
+                runner = importlib.import_module("recovery_runner")
+                config = {"source": scope, "repository": repo, "state_root": str(root / "target-state"), "services": ["homepage"],
+                    "plan_file": str(root / "controller/plan.json"), "domain": "fixture.example", "secrets": {},
+                    "legacy_profile": {"sources": {"config": {"kind": "files"}}, "images": {"homepage": [{"service": "homepage", "image": "homepage:fixture", "registry_digests": ["homepage@sha256:" + "d" * 64], "architecture": "amd64", "os": "linux"}]}},
+                    "registry": {"homepage": {"sources": {"config": {"kind": "files", "layout": "directory", "target": "homepage/config"}}}},
+                    "target": {"host": "replacement", "machine_id": "new-machine", "distribution": "Fedora", "release": "43", "architecture": "amd64",
+                        "storage_root": "/srv/replacement", "stack_root": "/opt/recovered", "storage_mount": "/srv", "min_free_bytes": 1,
+                        "probe": {"mount_ok": True, "free_bytes": 10000}}}
+                result = runner.create_plan(config)
+                self.assertEqual(result["blockers"], [])
+                self.assertEqual(result["snapshot_id"], expected)
+                public_plan = (root / "controller/plan.json").read_text()
+                self.assertNotIn("fixture-secret", public_plan)
+                self.assertNotIn("fixture-only", public_plan)
+                self.assertEqual((root / "controller/plan.json").stat().st_mode & 0o777, 0o600)
                 shutil.rmtree(root / "old")
                 target = root / "replacement/restored"
                 common.restic(repo, ["restore", selection["snapshot_id"], "--target", str(target), "--verify"])

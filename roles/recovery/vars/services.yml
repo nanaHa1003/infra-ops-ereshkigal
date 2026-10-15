@@ -34,6 +34,7 @@ recovery_service_registry:
         kind: files
         layout: reference
         required: true
+    storage_prefix: caddy
   auth:
     sources:
       authentik-db:
@@ -56,6 +57,7 @@ recovery_service_registry:
         kind: files
         layout: reference
         required: true
+    storage_prefix: authentik
   wordpress:
     sources:
       wordpress-db:
@@ -115,6 +117,7 @@ recovery_service_registry:
         kind: files
         layout: reference
         required: true
+    storage_prefix: wordpress
   pinchflat:
     sources:
       pinchflat-db:
@@ -137,6 +140,7 @@ recovery_service_registry:
         kind: files
         layout: reference
         required: true
+    storage_prefix: pinchflat
   immich:
     sources:
       immich-db:
@@ -151,6 +155,7 @@ recovery_service_registry:
         kind: files
         layout: reference
         required: true
+    storage_prefix: immich
   mealie:
     sources:
       mealie-db:
@@ -173,6 +178,7 @@ recovery_service_registry:
         kind: files
         layout: reference
         required: true
+    storage_prefix: mealie
   homepage:
     sources:
       homepage-config:
@@ -187,6 +193,7 @@ recovery_service_registry:
         kind: files
         layout: reference
         required: true
+    storage_prefix: homepage
   n8n:
     sources:
       n8n-db:
@@ -209,6 +216,7 @@ recovery_service_registry:
         kind: files
         layout: reference
         required: true
+    storage_prefix: n8n
   aria2:
     sources:
       aria2-config:
@@ -263,3 +271,4 @@ recovery_service_registry:
         kind: files
         layout: reference
         required: true
+    storage_prefix: aria2

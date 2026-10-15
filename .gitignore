@@ -32,3 +32,8 @@ __pycache__/
 .DS_Store
 .vscode/
 .idea/
+
+# Controller-side recovery plans (host paths and protected metadata)
+.recovery/
+inventory/recovery.ini
+inventory/recovery-profile.yml

@@ -1,0 +1,19 @@
+---
+recover_phase: plan
+recover_source:
+  repository: database
+  host: ereshkigal.netbird.cloud
+  job: database
+  staging_path: /var/lib/homelab-backup/staging/database
+  snapshot: latest
+recover_repositories:
+  database:
+    url: s3:https://s3.us-west-004.backblazeb2.com/homelab-db-snapshots/ereshkigal
+recover_services: [proxy, auth, n8n]
+recover_storage_mount: /srv/storage
+recover_min_free_bytes: 21474836480
+storage_root: /srv/storage/homelab
+stack_root: /opt/homelab
+# After plan: provide recover_plan_file with the generated controller path.
+# Legacy snapshots need an explicit recover_legacy_profile with source kinds,
+# original file artifacts and service-labelled, registry-pinned image records.

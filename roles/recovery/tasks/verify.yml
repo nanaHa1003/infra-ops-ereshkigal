@@ -1,0 +1,14 @@
+---
+- name: Refresh protected recovery configuration
+  ansible.builtin.import_tasks: config.yml
+
+- name: Recheck restored service data
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/python3
+      - "{{ recovery_program_dir }}/recovery_runner.py"
+      - --config
+      - "{{ recovery_config_dir }}/config.json"
+      - verify
+  changed_when: false
+  no_log: true

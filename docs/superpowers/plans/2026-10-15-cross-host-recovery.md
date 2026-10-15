@@ -123,12 +123,12 @@
 
 **Interfaces:** CLI `recovery_runner.py --config <root0600.json> {plan,restore,verify,cleanup-preview,cleanup} --run <id>`；plan 在 controller 尚無 config 檔時另支援 `--config-stdin`，秘密只經 stdin。Ansible `recover_plan_file` 指定控制端的公開計畫 JSON；plan 預設產生 `.recovery/<run_id>.plan.json` 並輸出該路徑，後續階段必須指定此檔，從中讀取唯一 run_id／完整 snapshot ID。`open_run(plan: dict, state_root: Path) -> RunState`、`advance_service(state: dict, service: str, phase: str, result: dict) -> None`、`cleanup_preview(state: dict) -> list[dict]`。activate 在 Task 8 加入，不先留可無檢查通過的 stub。
 
-- [ ] **1. Write failing tests**：`test_only_one_explicit_recovery_target_allowed`、`test_recover_never_imports_site_or_backup_main`、`test_check_mode_does_not_import_or_activate`、`test_plan_without_remote_restic_uses_controller_or_reports_incomplete`、`test_profile_snapshot_or_machine_change_rejects_resume`、`test_atomic_state_survives_interruption`、`test_cleanup_refuses_unknown_paths_or_active_production_containers`。
-- [ ] **2. Run RED**：`python -m unittest discover -s tests -p test_recovery_state.py -v` 及 `test_recovery_ansible.py`。
-- [ ] **3. Implement entry and state**：僅 `[recovery_targets]`、必填 limit/phase/services、預設 phase=plan。profile 使用獨立 repository map＋Vault 備份憑證，不繼承舊 host_vars；同網域及目標最小空間／mount 必填。控制端保存不含秘密的 plan JSON 及完整 ID（`.recovery/` gitignored），restore 必須引用該計畫；target root-only run state 含 `/etc/machine-id` identity。寫 state 使用同目錄暫存＋fsync＋atomic replace，持有整段主機鎖。cleanup 只能指定同 run，拒絕 activated state。
-- [ ] **4. Implement Ansible phase wiring**：plan 只做唯讀 facts／快照查詢，不安裝依賴；必要 sudo 明確交互輸入。restore 安裝 Python／PyYAML／restic、共用程式與 task1 bootstrap，下載驗證後才 prepare/install。掛載檢查使用實際 mount facts，不能只測 directory exists。render 所選版本的 target Compose，但不 start 應用。restore 自動呼叫 Task 6/7 adapters；在兩者完成前 CLI 對 restore 回傳 unavailable，不宣稱成功。
-- [ ] **5. Verify GREEN**：state/Ansible 測試、dummy-Vault 的 recover syntax及 lint。測試缺掛載、空間不足、架構不支援、Podman 衝突、第二個 lock；全部在正式資料寫入前失敗。plan 的 unknown 不能被當作 passed。
-- [ ] **6. Commit**：`feat: add isolated recovery preflight and run state`。
+- [x] **1. Write failing tests**：`test_only_one_explicit_recovery_target_allowed`、`test_recover_never_imports_site_or_backup_main`、`test_check_mode_does_not_import_or_activate`、`test_plan_without_remote_restic_uses_controller_or_reports_incomplete`、`test_profile_snapshot_or_machine_change_rejects_resume`、`test_atomic_state_survives_interruption`、`test_cleanup_refuses_unknown_paths_or_active_production_containers`。
+- [x] **2. Run RED**：`python -m unittest discover -s tests -p test_recovery_state.py -v` 及 `test_recovery_ansible.py`。
+- [x] **3. Implement entry and state**：僅 `[recovery_targets]`、必填 limit/phase/services、預設 phase=plan。profile 使用獨立 repository map＋Vault 備份憑證，不繼承舊 host_vars；同網域及目標最小空間／mount 必填。控制端保存不含秘密的 plan JSON 及完整 ID（`.recovery/` gitignored），restore 必須引用該計畫；target root-only run state 含 `/etc/machine-id` identity。寫 state 使用同目錄暫存＋fsync＋atomic replace，持有整段主機鎖。cleanup 只能指定同 run，拒絕 activated state。
+- [x] **4. Implement Ansible phase wiring**：plan 只做唯讀 facts／快照查詢，不安裝依賴；必要 sudo 明確交互輸入。restore 安裝 Python／PyYAML／restic、共用程式與 task1 bootstrap，下載驗證後才 prepare/install。掛載檢查使用實際 mount facts，不能只測 directory exists。render 所選版本的 target Compose，但不 start 應用。restore 自動呼叫 Task 6/7 adapters；在兩者完成前 CLI 對 restore 回傳 unavailable，不宣稱成功。
+- [x] **5. Verify GREEN**：state/Ansible 測試、dummy-Vault 的 recover syntax及 lint。測試缺掛載、空間不足、架構不支援、Podman 衝突、第二個 lock；全部在正式資料寫入前失敗。plan 的 unknown 不能被當作 passed。
+- [x] **6. Commit**：`feat: add isolated recovery preflight and run state`。
 
 ## Task 6: Restore databases into new persistent directories
 

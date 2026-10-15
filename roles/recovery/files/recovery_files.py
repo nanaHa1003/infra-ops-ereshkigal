@@ -115,8 +115,7 @@ def prepare_wordpress_core(image, destination, state):
         state["owned_containers"].remove(name)
 
 
-def install_artifacts(mappings: list, scratch: Path, state: dict) -> list:
-    validate_targets(mappings, state)
+def validate_artifacts(mappings: list, scratch: Path) -> None:
     for row in mappings:
         source = _artifact_path(row, scratch)
         artifact = row["artifact"]
@@ -134,6 +133,11 @@ def install_artifacts(mappings: list, scratch: Path, state: dict) -> list:
                     digest.update(chunk)
             if digest.hexdigest() != artifact["sha256"] or source.stat().st_size != artifact["size"]:
                 raise BackupError("recovery artifact verification failed")
+
+
+def install_artifacts(mappings: list, scratch: Path, state: dict) -> list:
+    validate_targets(mappings, state)
+    validate_artifacts(mappings, scratch)
     roots = {}
     for row in mappings:
         if row["kind"] in ("postgres", "mariadb"):

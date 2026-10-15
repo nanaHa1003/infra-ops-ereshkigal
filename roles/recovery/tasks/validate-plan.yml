@@ -1,0 +1,15 @@
+---
+- name: Validate controller plan against current target facts
+  ansible.builtin.command:
+    argv:
+      - "{{ ansible_playbook_python }}"
+      - "{{ role_path }}/files/recovery_runner.py"
+      - --config-stdin
+      - validate-plan
+    stdin: "{{ lookup('ansible.builtin.template', 'config.json.j2') }}"
+    chdir: "{{ playbook_dir }}"
+  delegate_to: localhost
+  become: false
+  register: recovery_plan_validation
+  changed_when: false
+  no_log: true

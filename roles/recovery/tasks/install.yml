@@ -1,0 +1,56 @@
+---
+- name: Require a supported replacement host
+  ansible.builtin.assert:
+    that:
+      - ansible_facts.distribution == 'Fedora'
+      - ansible_facts.distribution_major_version in recovery_supported_releases
+      - recovery_target_architecture == 'amd64'
+      - recovery_probe.mount_ok | bool
+      - not recovery_probe.service_probe_failed | bool
+      - not recovery_probe.active_backup_timers | bool
+      - not recovery_probe.ddns_active | bool
+      - recovery_probe.free_bytes | int >= recover_min_free_bytes | int
+    fail_msg: "Unsupported target or storage preflight failed."
+    quiet: true
+
+- name: Bootstrap replacement Docker host without removing packages
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: bootstrap.yml
+  vars:
+    common_remove_conflicts: false
+
+- name: Install recovery dependencies
+  ansible.builtin.package:
+    name: [restic, python3, python3-pyyaml, policycoreutils-python-utils, python3-libselinux]
+    state: present
+
+- name: Create protected recovery program and configuration directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+  loop: ["{{ recovery_program_dir }}", "{{ recovery_config_dir }}"]
+
+- name: Install recovery modules
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ recovery_program_dir }}/{{ item }}"
+    owner: root
+    group: root
+    mode: '0700'
+  loop: [recovery_runner.py, recovery_models.py, recovery_manifest.py, recovery_files.py, recovery_state.py]
+
+- name: Install shared backup modules without backup role side effects
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/roles/backup/files/{{ item }}"
+    dest: "{{ recovery_program_dir }}/{{ item }}"
+    owner: root
+    group: root
+    mode: '0700'
+  loop: [backup_common.py, backup_sources.py]
+
+- name: Refresh protected recovery configuration
+  ansible.builtin.import_tasks: config.yml
