@@ -1,0 +1,8 @@
+---
+- name: Enable or disable timers for the job
+  ansible.builtin.systemd_service:
+    name: "homelab-backup{{ item }}@{{ backup_job.key }}.timer"
+    enabled: "{{ backup_timers_enabled | bool }}"
+    state: "{{ 'started' if backup_timers_enabled | bool else 'stopped' }}"
+  loop: ['', '-maintenance', '-check']
+  when: not ansible_check_mode

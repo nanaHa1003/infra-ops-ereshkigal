@@ -10,7 +10,7 @@ stack_root: "/opt/stack"
 storage_root: "/mnt/storage"
 
 # Services enabled on this group. Each entry maps to a role of the same name.
-# Comment out a service to disable it without removing the role.
+# Omit a service to skip deployment; use down.yml --tags <role> to stop it.
 enabled_services:
   - proxy
   - auth
@@ -21,7 +21,10 @@ enabled_services:
   - homepage
   - n8n
   - aria2
-  - new-api
+
+# Normal deployment reconciles existing images. Opt in to pulling updates.
+pull_images: false
+force_restart: false
 
 # Per-service storage directory definitions.
 # Each role declares its own dirs here so the common role can create them
@@ -106,15 +109,6 @@ storage_permissions:
     group: 1000
     mode: "0755"
   - path: "aria2/downloads"
-    owner: 1000
-    group: 1000
-    mode: "0755"
-  # New API
-  - path: "new-api/data"
-    owner: 1000
-    group: 1000
-    mode: "0755"
-  - path: "new-api/logs"
     owner: 1000
     group: 1000
     mode: "0755"

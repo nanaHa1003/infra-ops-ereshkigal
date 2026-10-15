@@ -24,6 +24,7 @@
       - containerd.io
       - docker-buildx-plugin
       - docker-compose-plugin
+      - python3-requests
     state: present
 
 - name: Ensure Docker is started and enabled
@@ -78,7 +79,9 @@
     dest: /usr/local/bin/ddupdate.sh
     owner: root
     group: root
-    mode: '0755'
+    mode: '0700'
+  diff: false
+  no_log: true
 
 - name: Schedule DDNS update via cron
   ansible.builtin.cron:

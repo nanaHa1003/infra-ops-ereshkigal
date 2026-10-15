@@ -3,7 +3,7 @@ name: CI
 
 on:
   push:
-    branches: ["main", "feature/*"]
+    branches: ["main", "feature/*", "fix/*"]
   pull_request:
     branches: ["main"]
 
@@ -50,6 +50,9 @@ jobs:
       - name: Install Ansible collections
         run: ansible-galaxy collection install community.general community.docker
 
+      - name: Install restic for local backup integration tests
+        run: sudo apt-get update && sudo apt-get install -y restic
+
       - name: Set up CI vault (mock plaintext secrets)
         run: |
           # SAFETY: the dummy vault password is written to /tmp, never to .vault_pass
@@ -75,6 +78,9 @@ jobs:
       - name: Run ansible-lint
         run: ansible-lint
 
+      - name: Verify deployment and secret-handling contracts
+        run: python -m unittest discover -s tests -v
+
       - name: Syntax check — site.yml
         run: >
           ansible-playbook site.yml --syntax-check
@@ -83,6 +89,11 @@ jobs:
       - name: Syntax check — down.yml
         run: >
           ansible-playbook down.yml --syntax-check
+          -i inventory/hosts.ini.example
+
+      - name: Syntax check — backup.yml
+        run: >
+          ansible-playbook backup.yml --syntax-check
           -i inventory/hosts.ini.example
 
   molecule:
@@ -119,7 +130,9 @@ jobs:
           cp inventory/group_vars/all/vault.ci.yml inventory/group_vars/all/vault.yml
 
       - name: Run Molecule tests
-        run: molecule test
+        run: |
+          molecule test
+          molecule test -s backup
         env:
           PY_COLORS: "1"
           ANSIBLE_FORCE_COLOR: "1"

@@ -1,0 +1,24 @@
+---
+- name: Converge backup packaging
+  hosts: all
+  become: false
+  pre_tasks:
+    - name: Create SQLite fixture directory
+      ansible.builtin.file:
+        path: /var/lib/homelab-backup-fixture
+        state: directory
+        mode: "0700"
+    - name: Create test database
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3
+          - -c
+          - >-
+            import sqlite3;
+            db = sqlite3.connect('/var/lib/homelab-backup-fixture/live.db');
+            db.execute('CREATE TABLE fixture (name TEXT)');
+            db.execute("INSERT INTO fixture VALUES ('restorable')");
+            db.commit(); db.close()
+        creates: /var/lib/homelab-backup-fixture/live.db
+  roles:
+    - backup

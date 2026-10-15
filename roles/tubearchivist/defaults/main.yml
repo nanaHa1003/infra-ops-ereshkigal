@@ -7,4 +7,4 @@ tubearchivist_redis_image: "redis:alpine"
 tubearchivist_elasticsearch_heap_size: "1g"
 
 # Force re-deploy even when no template changes are detected
-tubearchivist_force_restart: false
+tubearchivist_force_restart: "{{ force_restart | default(false) | bool }}"

@@ -1,0 +1,23 @@
+[Unit]
+Description=Homelab backup %i
+Wants=network-online.target
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+User=root
+UMask=0077
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
+Environment=TZ=Asia/Taipei
+Environment=RESTIC_CACHE_DIR={{ backup_state_root }}/cache
+ExecStart=/usr/bin/python3 {{ backup_program_dir }}/backup_runner.py --config {{ backup_config_dir }}/config.json backup %i
+TimeoutStartSec=115min
+KillMode=control-group
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths={{ backup_state_root }}{% for job in backup_jobs.values() %}{% for source in job.sources %}{% if source.kind == 'sqlite' %} {{ source.path | dirname | to_json }}{% endif %}{% endfor %}{% endfor %}

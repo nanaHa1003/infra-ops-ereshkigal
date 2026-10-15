@@ -2,8 +2,8 @@
 galaxy_info:
   author: nanaha1003
   description: >
-    Deploys Immich photo management with machine learning (OpenVINO), PostgreSQL
-    with pgvectors/VectorChord, and Valkey cache. Supports Intel hardware
+    Deploys Immich photo management with CPU machine learning, PostgreSQL
+    with pgvectors/VectorChord, and Valkey cache. Supports optional hardware
     acceleration via host_vars device configuration.
   license: MIT
   min_ansible_version: "2.15"
@@ -12,5 +12,5 @@ galaxy_info:
       versions:
         - "43"
 
-dependencies:
-  - role: proxy
+# Ordering is explicit in site.yml; teardown never deploys dependencies.
+dependencies: []

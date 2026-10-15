@@ -37,3 +37,12 @@ vault_secrets:
   pinchflat:
     username: "ci-pinchflat-user"
     password: "ci-pinchflat-pass"
+  backup:
+    repositories:
+      database:
+        access_key_id: ci-backup-key-id
+        secret_access_key: ci-backup-secret
+        restic_password: ci-restic-password
+    jobs:
+      database:
+        healthchecks_ping_url: https://hc-ping.com/00000000-0000-0000-0000-000000000000

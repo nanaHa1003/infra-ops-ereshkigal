@@ -1,0 +1,46 @@
+---
+dependency:
+  name: galaxy
+driver:
+  name: docker
+platforms:
+  - name: homelab-backup-test
+    image: geerlingguy/docker-fedora40-ansible:latest
+    pre_build_image: true
+    privileged: true
+    command: /sbin/init
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+provisioner:
+  name: ansible
+  env:
+    ANSIBLE_ROLES_PATH: $MOLECULE_SCENARIO_DIRECTORY/../../roles
+  inventory:
+    group_vars:
+      all:
+        backup_repositories:
+          database:
+            url: /var/lib/homelab-backup/test-repository
+        backup_jobs:
+          database:
+            repository: database
+            sources:
+              - id: hostname
+                kind: files
+                path: /etc/hostname
+              - id: sqlite-fixture
+                kind: sqlite
+                path: /var/lib/homelab-backup-fixture/live.db
+        vault_secrets:
+          backup:
+            repositories:
+              database:
+                access_key_id: fake-test-key
+                secret_access_key: fake-test-secret
+                restic_password: fake-test-password
+            jobs:
+              database:
+                healthchecks_ping_url: https://hc-ping.com/00000000-0000-0000-0000-000000000000
+verifier:
+  name: ansible

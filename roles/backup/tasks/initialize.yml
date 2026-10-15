@@ -1,0 +1,14 @@
+---
+- name: Ensure explicitly requested repository is initialized
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/python3
+      - "{{ backup_program_dir }}/backup_runner.py"
+      - --config
+      - "{{ backup_config_dir }}/config.json"
+      - ensure-init
+      - "{{ item }}"
+  loop: "{{ backup_repositories | list }}"
+  register: backup_repository_initialization
+  changed_when: backup_repository_initialization.stdout == 'Repository initialized'
+  when: not ansible_check_mode

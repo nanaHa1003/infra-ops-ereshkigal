@@ -25,16 +25,21 @@ services:
     image: {{ immich_ml_image }}
     networks:
       - backend
-    # Inlined from hwaccel.ml.yml for OpenVINO
+{% if immich_ml_usb_bus %}
     device_cgroup_rules:
       - 'c 189:* rmw'
+{% endif %}
+{% if immich_ml_devices %}
     devices:
 {% for device in immich_ml_devices %}
       - {{ device }}
 {% endfor %}
+{% endif %}
     volumes:
-      - model-cache:/cache:Z
+      - model-cache:/cache
+{% if immich_ml_usb_bus %}
       - {{ immich_ml_usb_bus }}:/dev/bus/usb
+{% endif %}
     restart: always
 
   redis:

@@ -11,13 +11,15 @@
   ansible.builtin.template:
     src: tubearchivist.yml.j2
     dest: "{{ stack_root }}/tubearchivist/docker-compose.yml"
-    mode: '0644'
+    mode: '0600'
+  diff: false
+  no_log: true
   register: tubearchivist_compose
 
 - name: Start/Update TubeArchivist
   community.docker.docker_compose_v2:
     project_src: "{{ stack_root }}/tubearchivist"
     state: present
-    pull: always
-  when: tubearchivist_compose.changed or tubearchivist_force_restart
+    pull: "{{ 'always' if pull_images | default(false) | bool else 'missing' }}"
+    recreate: "{{ 'always' if tubearchivist_force_restart | bool else 'auto' }}"
   tags: [molecule-notest]

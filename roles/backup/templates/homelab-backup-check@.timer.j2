@@ -1,0 +1,10 @@
+[Unit]
+Description=Monthly rotating backup data check for {{ backup_job.key }}
+
+[Timer]
+OnCalendar={{ backup_job.value.check_schedule | default(backup_check_schedule) }}
+Persistent=true
+Unit=homelab-backup-check@{{ backup_job.key }}.service
+
+[Install]
+WantedBy=timers.target

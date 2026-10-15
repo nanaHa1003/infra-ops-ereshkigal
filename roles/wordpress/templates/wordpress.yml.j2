@@ -15,7 +15,7 @@ services:
       - backend
     user: "1000:1000"
     volumes:
-      - {{ storage_root }}/wordpress/html:/var/www/html:Z
+      - {{ storage_root }}/wordpress/html:/var/www/html:z
 
   mariadb:
     image: {{ wordpress_mariadb_image }}

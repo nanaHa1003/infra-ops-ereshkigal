@@ -19,13 +19,15 @@
   ansible.builtin.template:
     src: mealie.yml.j2
     dest: "{{ stack_root }}/mealie/docker-compose.yml"
-    mode: '0644'
+    mode: '0600'
+  diff: false
+  no_log: true
   register: mealie_compose
 
 - name: Start/Update Mealie
   community.docker.docker_compose_v2:
     project_src: "{{ stack_root }}/mealie"
     state: present
-    pull: always
-  when: mealie_compose.changed or mealie_force_restart
+    pull: "{{ 'always' if pull_images | default(false) | bool else 'missing' }}"
+    recreate: "{{ 'always' if mealie_force_restart | bool else 'auto' }}"
   tags: [molecule-notest]

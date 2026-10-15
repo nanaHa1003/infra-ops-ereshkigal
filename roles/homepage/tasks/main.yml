@@ -18,6 +18,6 @@
   community.docker.docker_compose_v2:
     project_src: "{{ stack_root }}/homepage"
     state: present
-    pull: always
-  when: homepage_compose.changed or homepage_force_restart
+    pull: "{{ 'always' if pull_images | default(false) | bool else 'missing' }}"
+    recreate: "{{ 'always' if homepage_force_restart | bool else 'auto' }}"
   tags: [molecule-notest]

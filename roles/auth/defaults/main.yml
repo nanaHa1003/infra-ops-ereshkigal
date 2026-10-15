@@ -14,4 +14,4 @@ auth_smtp_timeout: 10
 auth_email_from: "authentik@mail.ereshkigal.cc"
 
 # Force re-deploy even when no template changes are detected
-auth_force_restart: false
+auth_force_restart: "{{ force_restart | default(false) | bool }}"
