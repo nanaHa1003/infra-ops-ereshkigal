@@ -84,6 +84,8 @@ def normalize_manifest(raw: dict, selection: dict, legacy_profile: dict) -> dict
             kind = definition.get("kind", value.get("kind"))
             if kind not in KINDS:
                 raise BackupError("legacy source requires an explicit kind")
+            for key in ("version", "database", "role", "extensions", "preload_libraries", "definers", "verification"):
+                if key in definition: value[key] = definition[key]
             suffix = {"postgres": "database.dump", "mariadb": "database.sql", "sqlite": "database.sqlite", "aria2_session": "aria2.session"}.get(kind)
             entry_type = "file" if suffix else definition.get("entry_type", "directory")
             relative = identifier + "/" + suffix if suffix else definition.get("artifact", identifier)

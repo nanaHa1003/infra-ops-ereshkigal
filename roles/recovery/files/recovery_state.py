@@ -104,4 +104,7 @@ def cleanup_preview(state: dict) -> list:
         if not name.startswith("recovery-") or state["run_id"] not in name:
             raise BackupError("cleanup container is not a recovery resource")
         preview.append({"kind": "container", "value": name})
-    return preview
+    for name in state.get("owned_networks", []):
+        if name != "recovery-" + state["run_id"]: raise BackupError("cleanup network is not a recovery resource")
+        preview.append({"kind": "network", "value": name})
+    return sorted(preview, key=lambda item: {"container": 0, "network": 1, "path": 2}[item["kind"]])

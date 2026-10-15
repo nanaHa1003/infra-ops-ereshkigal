@@ -253,11 +253,14 @@ def main(argv=None):
             if args.run != state["run_id"]:
                 raise BackupError("cleanup requires an explicit matching run ID")
             for item in preview:
-                if item["kind"] == "container":
-                    labels = json.loads(command(["docker", "inspect", "--format", '{{json (index .Config.Labels "homelab.recovery.run")}}', item["value"]], timeout=30))
+                if item["kind"] in ("container", "network"):
+                    inspect = ["docker", "inspect"] if item["kind"] == "container" else ["docker", "network", "inspect"]
+                    label_path = ".Config.Labels" if item["kind"] == "container" else ".Labels"
+                    labels = json.loads(command(inspect + ["--format", '{{json (index ' + label_path + ' "homelab.recovery.run")}}', item["value"]], timeout=30))
                     if labels != state["run_id"]: raise BackupError("cleanup container ownership mismatch")
             for item in preview:
                 if item["kind"] == "container": command(["docker", "rm", "-f", "-v", item["value"]], timeout=60)
+                elif item["kind"] == "network": command(["docker", "network", "rm", item["value"]], timeout=60)
                 elif Path(item["value"]).exists(): shutil.rmtree(checked_path(item["value"]))
             shutil.rmtree(checked_path(state["_run_root"]))
             print(json.dumps({"run_id": args.run, "cleaned": True}))

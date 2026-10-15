@@ -65,7 +65,7 @@ def build_manifest(stage: Path, config: dict, exports: dict) -> dict:
     for source in job["sources"]:
         identifier = safe_id(source["id"])
         exported = exports[identifier]
-        record = {key: exported[key] for key in ("version", "database", "role", "extensions", "image", "engines", "optional_absent") if key in exported}
+        record = {key: exported[key] for key in ("version", "database", "role", "extensions", "image", "engines", "preload_libraries", "definers", "optional_absent") if key in exported}
         record.update(kind=source["kind"], source_path=source.get("path"), artifacts=[])
         if not exported.get("optional_absent"):
             root = checked_path(str(stage / identifier))

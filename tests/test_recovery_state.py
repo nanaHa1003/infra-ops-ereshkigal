@@ -54,6 +54,13 @@ class RecoveryState(unittest.TestCase):
         state["activation"]["services_started"] = ["auth"]
         with self.assertRaises(self.module.BackupError): self.module.cleanup_preview(state)
 
+    def test_cleanup_stops_owned_resources_before_removing_data(self):
+        state = self.module.open_run(self.plan, self.state_root)
+        state['owned_paths'] = self.plan['approved_roots']
+        state['owned_containers'] = ['recovery-db-fixture-run-auth']
+        state['owned_networks'] = ['recovery-fixture-run']
+        self.assertEqual([item['kind'] for item in self.module.cleanup_preview(state)], ['container', 'network', 'path'])
+
     def test_run_lock_rejects_overlapping_restore(self):
         with self.module.run_lock(self.state_root):
             with self.assertRaises(self.module.BackupError):
