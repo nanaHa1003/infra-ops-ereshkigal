@@ -1,0 +1,8 @@
+---
+- name: Start/Update Pinchflat
+  community.docker.docker_compose_v2:
+    project_src: "{{ stack_root }}/pinchflat"
+    state: present
+    pull: "{{ 'always' if pull_images | default(false) | bool else 'missing' }}"
+    recreate: "{{ 'always' if pinchflat_force_restart | bool else 'auto' }}"
+  tags: [molecule-notest]

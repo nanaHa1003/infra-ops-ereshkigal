@@ -1,0 +1,18 @@
+---
+# 7. Configure deSEC DDNS updates
+- name: Deploy deSEC DDNS update script
+  ansible.builtin.template:
+    src: ddupdate.sh.j2
+    dest: /usr/local/bin/ddupdate.sh
+    owner: root
+    group: root
+    mode: '0700'
+  diff: false
+  no_log: true
+
+- name: Schedule DDNS update via cron
+  ansible.builtin.cron:
+    name: "deSEC DDNS Update"
+    minute: "*/15"
+    job: "/usr/local/bin/ddupdate.sh > /dev/null 2>&1"
+    state: present

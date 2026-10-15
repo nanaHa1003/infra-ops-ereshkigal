@@ -1,0 +1,17 @@
+---
+- name: Create Authentik stack directory
+  ansible.builtin.file:
+    path: "{{ stack_root }}/auth"
+    state: directory
+    owner: 0
+    group: 0
+    mode: '0755'
+
+- name: Deploy Authentik Compose
+  ansible.builtin.template:
+    src: auth.yml.j2
+    dest: "{{ stack_root }}/auth/docker-compose.yml"
+    mode: '0600'
+  diff: false
+  no_log: true
+  register: auth_compose

@@ -1,25 +1,6 @@
 ---
-- name: Create Immich stack directory
-  ansible.builtin.file:
-    path: "{{ stack_root }}/immich"
-    state: directory
-    owner: 0
-    group: 0
-    mode: '0755'
+- name: Prepare immich deployment
+  ansible.builtin.import_tasks: prepare.yml
 
-- name: Deploy Immich Compose
-  ansible.builtin.template:
-    src: immich.yml.j2
-    dest: "{{ stack_root }}/immich/docker-compose.yml"
-    mode: '0600'
-  diff: false
-  no_log: true
-  register: immich_compose
-
-- name: Start/Update Immich
-  community.docker.docker_compose_v2:
-    project_src: "{{ stack_root }}/immich"
-    state: present
-    pull: "{{ 'always' if pull_images | default(false) | bool else 'missing' }}"
-    recreate: "{{ 'always' if immich_force_restart | bool else 'auto' }}"
-  tags: [molecule-notest]
+- name: Start immich deployment
+  ansible.builtin.import_tasks: start.yml

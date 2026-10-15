@@ -1,25 +1,6 @@
 ---
-- name: Create Aria2 stack directory
-  ansible.builtin.file:
-    path: "{{ stack_root }}/aria2"
-    state: directory
-    owner: 0
-    group: 0
-    mode: '0755'
+- name: Prepare aria2 deployment
+  ansible.builtin.import_tasks: prepare.yml
 
-- name: Deploy Aria2 Compose
-  ansible.builtin.template:
-    src: aria2.yml.j2
-    dest: "{{ stack_root }}/aria2/docker-compose.yml"
-    mode: '0600'
-  diff: false
-  no_log: true
-  register: aria2_compose
-
-- name: Start/Update Aria2
-  community.docker.docker_compose_v2:
-    project_src: "{{ stack_root }}/aria2"
-    state: present
-    pull: "{{ 'always' if pull_images | default(false) | bool else 'missing' }}"
-    recreate: "{{ 'always' if aria2_force_restart | bool else 'auto' }}"
-  tags: [molecule-notest]
+- name: Start aria2 deployment
+  ansible.builtin.import_tasks: start.yml

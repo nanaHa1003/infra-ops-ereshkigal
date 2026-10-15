@@ -1,0 +1,39 @@
+---
+- name: Create Caddy stack directory
+  ansible.builtin.file:
+    path: "{{ stack_root }}/proxy"
+    state: directory
+    mode: "0755"
+
+- name: Deploy Caddyfile
+  ansible.builtin.template:
+    src: Caddyfile.j2
+    dest: "{{ stack_root }}/proxy/Caddyfile"
+    mode: '0600'
+  diff: false
+  no_log: true
+  register: proxy_caddy_config
+
+- name: Deploy Caddy Compose
+  ansible.builtin.template:
+    src: proxy.yml.j2
+    dest: "{{ stack_root }}/proxy/docker-compose.yml"
+    mode: '0644'
+  register: proxy_caddy_compose
+
+- name: Create Docker socket proxy directory
+  ansible.builtin.file:
+    path: "{{ stack_root }}/docker-proxy"
+    state: directory
+    mode: "0755"
+
+- name: Deploy Docker socket proxy Compose
+  ansible.builtin.template:
+    src: docker-socket.yml.j2
+    dest: "{{ stack_root }}/docker-proxy/docker-compose.yml"
+    mode: '0644'
+  register: proxy_socket_compose
+
+- name: Ensure shared Docker networks exist
+  ansible.builtin.import_tasks: networks.yml
+  tags: [molecule-notest]
