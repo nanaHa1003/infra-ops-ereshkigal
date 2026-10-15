@@ -154,3 +154,18 @@ class RecoveryFiles(unittest.TestCase):
         self.assertEqual((self.root / "replacement/wordpress/html/settings.yml").read_text(), "snapshot")
 
 if __name__ == "__main__": unittest.main()
+
+class WordPressCreationIntent(unittest.TestCase):
+    def test_core_container_intent_is_persisted_before_create(self):
+        import recovery_files as module
+        import recovery_state
+        import json
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary).resolve()
+            state=recovery_state.open_run({'run_id':'fixture-core','target':{'machine_id':'fixture'},'selection':{'snapshot_id':'a'*64},'profile_sha256':'b'*64,'services':['wordpress'],'approved_roots':[]},root/'state')
+            def create(args,**kwargs):
+                disk=json.loads(Path(state['_state_file']).read_text())
+                self.assertIn('recovery-core-fixture-core',disk['owned_containers'])
+                raise module.BackupError('fixture creation failure')
+            with patch.object(module,'command',side_effect=create),self.assertRaises(module.BackupError):
+                module.prepare_wordpress_core('wordpress@sha256:'+'a'*64,root/'html',state)

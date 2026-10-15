@@ -8,6 +8,7 @@ from backup_common import BackupError, checked_path, safe_id
 from backup_sources import command, copy_files, stable_copy
 from recovery_manifest import read_compose_fields
 from recovery_models import relative_artifact
+from recovery_state import save_state
 
 
 def build_mappings(model: dict, target: dict, registry: dict) -> list:
@@ -107,12 +108,14 @@ def prepare_wordpress_core(image, destination, state):
         raise BackupError("pinned WordPress core image required")
     name = "recovery-core-" + safe_id(state["run_id"])
     state.setdefault("owned_containers", []).append(name)
+    save_state(state)
     command(["docker", "create", "--name", name, "--label", "homelab.recovery.run=" + state["run_id"], "--network", "none", image], timeout=120)
     try:
         command(["docker", "cp", name + ":/usr/src/wordpress/.", str(destination)], timeout=120)
     finally:
         command(["docker", "rm", "-v", name], timeout=30)
         state["owned_containers"].remove(name)
+        save_state(state)
 
 
 def validate_artifacts(mappings: list, scratch: Path) -> None:
@@ -175,9 +178,15 @@ def install_artifacts(mappings: list, scratch: Path, state: dict) -> list:
 SECRET_FIELDS = {
     "auth": [("auth-compose", "postgresql", "POSTGRES_PASSWORD", "authentik", "pgpass"),
              ("auth-compose", "authentik-server", "AUTHENTIK_SECRET_KEY", "authentik", "secret_key")],
-    "n8n": [("n8n-compose", "n8n-postgres", "POSTGRES_PASSWORD", "n8n", "postgres_password")],
-    "wordpress": [("wordpress-compose", "mariadb", "MYSQL_PASSWORD", "wordpress", "mysql_password")],
-    "immich": [("immich-compose", "database", "POSTGRES_PASSWORD", "immich", "db_password")],
+    "n8n": [("n8n-compose", "n8n-postgres", "POSTGRES_PASSWORD", "n8n", "postgres_password"),
+            ("n8n-compose", "n8n-postgres", "POSTGRES_USER", "n8n", "postgres_user"),
+            ("n8n-compose", "n8n-postgres", "POSTGRES_DB", "n8n", "postgres_db")],
+    "wordpress": [("wordpress-compose", "mariadb", "MYSQL_PASSWORD", "wordpress", "mysql_password"),
+                  ("wordpress-compose", "mariadb", "MYSQL_USER", "wordpress", "mysql_user"),
+                  ("wordpress-compose", "mariadb", "MYSQL_DATABASE", "wordpress", "mysql_database")],
+    "immich": [("immich-compose", "database", "POSTGRES_PASSWORD", "immich", "db_password"),
+               ("immich-compose", "database", "POSTGRES_USER", "immich", "db_username"),
+               ("immich-compose", "database", "POSTGRES_DB", "immich", "db_database_name")],
     "aria2": [("aria2-compose", "aria2", "SECRET", "aria2", "rpc_secret")],
 }
 

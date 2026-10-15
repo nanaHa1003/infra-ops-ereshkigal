@@ -74,3 +74,24 @@ class RecoveryState(unittest.TestCase):
             self.module.advance_service(state, "auth", "prepared", {})
 
 if __name__ == "__main__": unittest.main()
+
+class RuntimeHostLock(unittest.TestCase):
+    def test_custom_state_root_cannot_bypass_host_lock(self):
+        import recovery_runner as runner
+        with tempfile.TemporaryDirectory() as temporary:
+            root=str(Path(temporary).resolve()/'host-lock')
+            with patch.object(runner,'HOST_LOCK_ROOT',root):
+                with runner.runtime_lock():
+                    with self.assertRaises(runner.BackupError):
+                        with runner.runtime_lock():pass
+
+class CleanupCreationFailure(unittest.TestCase):
+    setUp=RecoveryState.setUp
+    def test_cleanup_handles_recorded_intent_before_container_exists(self):
+        import recovery_runner as runner
+        state=self.module.open_run(self.plan,self.state_root)
+        data=Path(self.plan['approved_roots'][0]);data.mkdir(parents=True);(data/'partial').touch()
+        state['owned_paths']=[str(data)];state['owned_containers']=['recovery-db-fixture-run-auth'];state['owned_networks']=['recovery-fixture-run']
+        with patch.object(runner,'_docker',return_value=b''):
+            runner.cleanup_run(state)
+        self.assertFalse(data.exists())

@@ -5,6 +5,7 @@ from pathlib import Path
 import secrets
 import sys
 import time
+import threading
 import unittest
 ROOT=Path(__file__).resolve().parents[1]
 sys.path[:0]=[str(ROOT/'roles/recovery/files'),str(ROOT/'roles/backup/files')]
@@ -44,7 +45,25 @@ class N8nCredentialRecovery(unittest.TestCase):
             # Make it active in DB directly: verification must not run scheduled jobs.
             _docker(['exec',dbname,'psql','-U','app','-d','appdb','-c','UPDATE workflow_entity SET active=true;'])
             options={'image':image,'name':name+'-cli','network':network,'database':'appdb','app_user':'app','app_password':'fake-db','database_host':dbname,'config_file':str(config),'expected_count':1,'run_id':name}
-            result=check_n8n_cli(options)
+            inspections=[];finished=threading.Event()
+            def inspect_cli():
+                while not finished.is_set():
+                    try:
+                        row=json.loads(_docker(['inspect','--format','{"ports":{{json .HostConfig.PortBindings}},"readonly":{{json .HostConfig.ReadonlyRootfs}},"mounts":{{json .Mounts}},"tmpfs":{{json .HostConfig.Tmpfs}},"network":{{json .HostConfig.NetworkMode}},"networks":{{json .NetworkSettings.Networks}}}',options['name']]))
+                        inspections.append(row);return
+                    except BackupError: time.sleep(.05)
+            observer=threading.Thread(target=inspect_cli);observer.start()
+            try:result=check_n8n_cli(options)
+            finally:finished.set();observer.join(timeout=10)
+            self.assertTrue(inspections,'inspect actual CLI isolation while it is running')
+            isolation=inspections[0]
+            self.assertFalse(isolation['ports']);self.assertTrue(isolation['readonly'])
+            self.assertNotEqual(isolation['network'],'host')
+            self.assertEqual(set(isolation['networks']),{network})
+            self.assertTrue(json.loads(_docker(['network','inspect','--format','{{json .Internal}}',network])))
+            self.assertFalse(any(row.get('Destination') in ('/var/run/docker.sock','/run/podman/podman.sock') for row in isolation['mounts']))
+            tmpfs=set(isolation['tmpfs'] or {})|{row['Destination'] for row in isolation['mounts'] if row.get('Type')=='tmpfs'}
+            self.assertIn('/tmp',tmpfs);self.assertIn('/home/node/.n8n',tmpfs)
             self.assertEqual(result,{'status':'passed','count':1})
             config.write_text(json.dumps({'encryptionKey':'wrong-key'}))
             with self.assertRaisesRegex(BackupError,'n8n credential decryption failed'): check_n8n_cli(options)

@@ -2,6 +2,8 @@
 
 此功能從固定 Restic 快照還原資料庫與設定到**另一台空白 Fedora 43 x86_64 主機**，不需要來源主機 SSH。`recover.yml` 是獨立入口，`site.yml` 不包含任何復原操作。照片、影片、下載、WordPress uploads、Mealie 附件不在目前備份範圍。
 
+要讓後續快照自動記錄 image digests、資料庫 preload／DEFINER 與網域，需另外由操作者部署新版 `backup.yml` 並確認新快照成功；目前開發未變更正式機的備份程式。既有舊快照使用明確 legacy profile，缺版本資訊時不能保證無人介入復原。
+
 目前開發驗證通過的範圍及尚待驗收項目列於文件末尾；正式災難復原前，必須先完成空白 Fedora VM 演練。
 
 ## 事前準備
@@ -80,3 +82,5 @@ ansible-playbook recover.yml -i inventory/recovery.ini --limit replacement \
 本機隔離 Linux/arm64 component tests：PG16.10、PG18.0、Immich PG14（vector/vectors/vchord、向量索引）、MariaDB11.4.5（routine/event/trigger/DEFINER）、SQLite integrity/WAL；移除來源 DB 後仍可匯入，FK、ownership、app 非 superuser、重跑不重灌均已檢查。四組 DB matrix 約76秒（images cached）；n8n2.28.0 正／錯金鑰與 active workflow 不執行約29秒。這些數字只描述小型假資料測試，不能據此承諾正式 RTO。
 
 **尚待驗收：空白 Fedora43 x86_64 VM、SELinux enforcing、不同 UID／儲存掛載路徑、重開機後完整 Ansible 還原與正式啟動。** 本機容器測試不等同此驗收；尚未在新機部署本功能，也未對正式 B2 repository 做復原寫入。照片／媒體備份及完整性驗證另行處理。
+
+開發回歸另包含：137項 unittest／本機 Restic 測試通過（五項需 Docker 的測試在一般 suite 明確停用，另以強制 gate 全部實跑通過）；v1/v2 在來源刪除後 plan→download→restore→verify 的 SQLite/config round trip；Molecule recovery 以 UID1007/GID1008 驗證實際 owner，第二次 converge 零變更。Molecule 僅驗證 component 包裝與資料層，不宣稱已跑完整 Fedora43 `recover.yml` 正式接管。

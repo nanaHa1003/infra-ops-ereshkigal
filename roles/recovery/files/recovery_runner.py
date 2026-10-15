@@ -25,6 +25,14 @@ from recovery_databases import restore_database, stop_recovery_databases, _docke
 from recovery_activate import begin_activation, finish_activation, check_activation_ready, validate_activation_environment
 from recovery_verify import verify_service, write_report
 
+HOST_LOCK_ROOT = '/run/homelab-recovery'
+
+
+def runtime_lock():
+    # Host-wide location is independent of a user-selected state directory.
+    return run_lock(HOST_LOCK_ROOT)
+
+
 IMAGE_VARIABLES = {
     "proxy": {"caddy": "proxy_caddy_image", "docker-ro": "proxy_socket_proxy_image", "docker-rw": "proxy_socket_proxy_image"},
     "auth": {"postgresql": "auth_postgres_image", "redis": "auth_redis_image", "authentik-server": "auth_authentik_image", "authentik-worker": "auth_authentik_image"},
@@ -250,6 +258,29 @@ def restore_and_verify(config, plan, state, verify_only):
         stop_recovery_databases(state)
 
 
+def cleanup_run(state):
+    preview=cleanup_preview(state)
+    existing_containers=set(_docker(['ps','-a','--format','{{.Names}}']).decode().split())
+    existing_networks=set(_docker(['network','ls','--format','{{.Name}}']).decode().split())
+    present=[]
+    for item in preview:
+        kind,value=item['kind'],item['value']
+        if kind=='path': present.append(item);continue
+        if value not in (existing_containers if kind=='container' else existing_networks): continue
+        inspect=['inspect'] if kind=='container' else ['network','inspect']
+        labels='.Config.Labels' if kind=='container' else '.Labels'
+        owner=json.loads(_docker(inspect+['--format','{{json (index '+labels+' "homelab.recovery.run")}}',value]))
+        if owner!=state['run_id']:raise BackupError('cleanup resource ownership mismatch')
+        present.append(item)
+    # Every present resource was validated before the first deletion.
+    for item in present:
+        kind,value=item['kind'],item['value']
+        if kind=='container':_docker(['rm','-f','-v',value],timeout=60)
+        elif kind=='network':_docker(['network','rm',value],timeout=60)
+        elif checked_path(value).exists():shutil.rmtree(checked_path(value))
+    shutil.rmtree(checked_path(state['_run_root']))
+
+
 def install_signal_handlers():
     def interrupted(_number,_frame):
         raise BackupError('recovery interrupted')
@@ -291,7 +322,7 @@ def main(argv=None):
         operating_system = platform.freedesktop_os_release()
         if actual_id != plan["target"]["machine_id"] or operating_system.get("ID") != "fedora" or operating_system.get("VERSION_ID") != "43" or platform.machine() != "x86_64":
             raise BackupError("runtime target identity or platform does not match the recovery plan")
-        with run_lock(config["state_root"]):
+        with runtime_lock():
             if args.operation == "download":
                 state = download(config, plan)
                 print(json.dumps({"run_id": state["run_id"], "phase": state["phase"]}))
@@ -321,17 +352,7 @@ def main(argv=None):
                 return 0
             if args.run != state["run_id"]:
                 raise BackupError("cleanup requires an explicit matching run ID")
-            for item in preview:
-                if item["kind"] in ("container", "network"):
-                    inspect = ["docker", "inspect"] if item["kind"] == "container" else ["docker", "network", "inspect"]
-                    label_path = ".Config.Labels" if item["kind"] == "container" else ".Labels"
-                    labels = json.loads(command(inspect + ["--format", '{{json (index ' + label_path + ' "homelab.recovery.run")}}', item["value"]], timeout=30))
-                    if labels != state["run_id"]: raise BackupError("cleanup container ownership mismatch")
-            for item in preview:
-                if item["kind"] == "container": command(["docker", "rm", "-f", "-v", item["value"]], timeout=60)
-                elif item["kind"] == "network": command(["docker", "network", "rm", item["value"]], timeout=60)
-                elif Path(item["value"]).exists(): shutil.rmtree(checked_path(item["value"]))
-            shutil.rmtree(checked_path(state["_run_root"]))
+            cleanup_run(state)
             print(json.dumps({"run_id": args.run, "cleaned": True}))
             return 0
     except Exception as error:

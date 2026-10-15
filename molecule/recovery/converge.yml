@@ -1,0 +1,24 @@
+---
+- name: Package recovery backend without production roles or credentials
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Create protected component fixture directories
+      ansible.builtin.file:
+        path: /opt/recovery-fixture/{{ item }}
+        state: directory
+        mode: '0700'
+      loop: [roles/backup, roles/recovery, tests]
+    - name: Copy public recovery and backup modules only
+      ansible.builtin.copy:
+        src: '{{ molecule_scenario_directory }}/../../roles/{{ item }}/files'
+        dest: /opt/recovery-fixture/roles/{{ item }}/
+        mode: '0700'
+        directory_mode: '0700'
+      loop: [backup, recovery]
+    - name: Copy synthetic end-to-end tests
+      ansible.builtin.copy:
+        src: '{{ molecule_scenario_directory }}/../../tests/{{ item }}'
+        dest: /opt/recovery-fixture/tests/{{ item }}
+        mode: '0700'
+      loop: [recovery_fixtures.py, test_recovery_end_to_end.py]

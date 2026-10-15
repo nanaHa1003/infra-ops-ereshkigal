@@ -94,3 +94,15 @@ except runner.BackupError: sys.exit(1)
                 self.assertTrue((root/'stopped').exists(),'termination skipped database stop')
             finally:
                 if process.poll() is None: process.kill(); process.communicate()
+
+class IntegrationGate(unittest.TestCase):
+    def test_ci_rejects_zero_tests_or_dependency_skips(self):
+        import run_recovery_integration as gate
+        class Result:
+            testsRun=0
+            skipped=[]
+            def wasSuccessful(self):return True
+        with self.assertRaises(RuntimeError):gate.require_matrix(Result())
+        result=Result();result.testsRun=5;result.skipped=[('fixture','missing Docker')]
+        with self.assertRaises(RuntimeError):gate.require_matrix(result)
+        result.skipped=[];gate.require_matrix(result)

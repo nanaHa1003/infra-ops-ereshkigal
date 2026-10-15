@@ -8,7 +8,7 @@
 
 **Tech Stack:** Ansible、community.docker、Python standard library、PyYAML（僅 legacy Compose parser）、restic、Docker Compose v2、Fedora 43 x86_64／systemd／SELinux enforcing VM。資料庫矩陣為 PG16、PG18、Immich PG14 extensions、MariaDB、SQLite。
 
-**Spec:** `docs/superpowers/specs/2026-10-15-cross-host-recovery-design.md`（使用者已確認）。本計畫待審閱及選擇執行方式；尚未開始實作。
+**Spec:** `docs/superpowers/specs/2026-10-15-cross-host-recovery-design.md`（使用者已確認）。使用者選擇 Native 執行；實作與隔離測試已進行，Fedora43 x86_64 VM 驗收仍待外部測試環境。
 
 ## Global Constraints
 
@@ -136,11 +136,11 @@
 
 **Interfaces:** `restore_database(service: str, model: dict, target: dict, state: dict) -> VerificationResult`；`stop_recovery_databases(state: dict) -> None`；owned containers 帶 run/service labels。DB-only template 只允許 internal network、target-owned DB volume，無 public ports／host network／socket。integration harness 以 `HOMELAB_RECOVERY_INTEGRATION=1` 明確啟用；CI 必跑，未設旗標的 local skip 要列入報告。
 
-- [ ] **1. Write failing tests**：PG角色與 ownership、PG18 mount、Immich vector/vectors/vchord 真實 extensions／索引、MariaDB routines/events/triggers/DEFINER、SQLite WAL 殘留、SQL error、empty dump、timeout；`test_interrupted_import_does_not_reimport_automatically` 與 `test_database_volume_has_only_one_running_owner`。
-- [ ] **2. Run RED**：`python -m unittest discover -s tests -p test_recovery_databases.py -v`；Docker harness 啟用後執行 integration 檔，預期尚未實作 adapter 而失敗，不以缺 Docker 的 skip 當 RED。
-- [ ] **3. Implement PG/MariaDB/SQLite adapters**：PG 建正確 app role／DB後用 matching pg_restore `--exit-on-error --no-owner --no-acl`；Immich image/preload 按 snapshot extensions，缺庫直接拒絕。MariaDB bootstrap account 與 app grants 分開，DEFINER 只接受 profile 確認的白名單；client error 不忽略。SQLite integrity 通過後安裝至停用 app 的目錄。每次只標記完整成功的匯入；錯誤只記固定類別，不印 raw stderr。
-- [ ] **4. Verify GREEN**：假資料在 PG16、PG18、Immich PG14、MariaDB 及 SQLite 完整 round trip，檢查 FK／索引／代表性內容及非 superuser app 權限。MariaDB／WordPress tag 先解析 fixture 版本及 digest，不測「目前 latest」。輸出無 secrets，容器停止後 DB 目錄仍存在，stop 不刪 persistent data。
-- [ ] **5. Commit**：`feat: restore PostgreSQL MariaDB and SQLite recovery data`。
+- [x] **1. Write failing tests**：PG角色與 ownership、PG18 mount、Immich vector/vectors/vchord 真實 extensions／索引、MariaDB routines/events/triggers/DEFINER、SQLite WAL 殘留、SQL error、empty dump、timeout；`test_interrupted_import_does_not_reimport_automatically` 與 `test_database_volume_has_only_one_running_owner`。
+- [x] **2. Run RED**：`python -m unittest discover -s tests -p test_recovery_databases.py -v`；Docker harness 啟用後執行 integration 檔，預期尚未實作 adapter 而失敗，不以缺 Docker 的 skip 當 RED。
+- [x] **3. Implement PG/MariaDB/SQLite adapters**：PG 建正確 app role／DB後用 matching pg_restore `--exit-on-error --no-owner --no-acl`；Immich image/preload 按 snapshot extensions，缺庫直接拒絕。MariaDB bootstrap account 與 app grants 分開，DEFINER 只接受 profile 確認的白名單；client error 不忽略。SQLite integrity 通過後安裝至停用 app 的目錄。每次只標記完整成功的匯入；錯誤只記固定類別，不印 raw stderr。
+- [x] **4. Verify GREEN**：假資料在 PG16、PG18、Immich PG14、MariaDB 及 SQLite 完整 round trip，檢查 FK／索引／代表性內容及非 superuser app 權限。MariaDB／WordPress tag 先解析 fixture 版本及 digest，不測「目前 latest」。輸出無 secrets，容器停止後 DB 目錄仍存在，stop 不刪 persistent data。
+- [x] **5. Commit**：`feat: restore PostgreSQL MariaDB and SQLite recovery data`。
 
 ## Task 7: Verify application data and n8n key without running workloads
 
@@ -148,12 +148,12 @@
 
 **Interfaces:** `verify_service(service: str, model: dict, target: dict, state: dict) -> VerificationResult`；`verify_n8n_credentials(model: dict, state: dict) -> VerificationResult`；`write_report(state: dict, results: list[dict], destination: Path) -> None`。report 對每服務區分 data_restored、checks、limitations、activation_blockers；未知 baseline 不判定全部內容一致。
 
-- [ ] **1. Write failing tests**：`test_authentik_and_n8n_counts_use_snapshot_baseline`、`test_changed_live_counts_do_not_invalidate_snapshot`、`test_n8n_wrong_key_fails_without_plaintext_output`、`test_zero_credentials_is_not_applicable`、`test_missing_media_blocks_immich_and_aria2_start`、`test_caddy_validation_does_not_start_tls_or_ddns`。
-- [ ] **2. Run RED**：verify unit tests；啟用 DB integration 旗標執行 n8n fixture，正確 key／錯 key 兩種 case 都有行為斷言。
-- [ ] **3. Implement versioned service checks**：registry 明列每個 image version 的表名／檢查 SQL；不硬套不同版本 schema。Auth users/apps/providers/flows；n8n workflows/credentials；Immich assets/users/albums及 extension；WP posts/options/prefix；Mealie recipes/users；Pinchflat sources/profiles；其餘 YAML/config/permissions。沒有版本化檢查支援時回 blocked 或明確 limited，不以 container running 冒充。
-- [ ] **4. Implement isolated n8n CLI check**：匹配 image 以 CLI command 連到還原 DB，不啟動 n8n server。必要解密 export 只寫 container tmpfs，stdout/stderr capture 並丟棄敏感內容，驗證 exit code／輸出數量與資料格式後清除。fixture 含 synthetic active workflow，assert 假 webhook/SMTP 接收器零請求；無 Docker socket，容器移除時 tmpfs 消失。
-- [ ] **5. Verify GREEN**：unit/integration tests 與 restore 自動驗證串接；verify 可重跑，不重新匯入 DB、不更新來源快照、不 ping Healthchecks。所有完整性／數量／解密結果列明範圍；錯 key 絕不標 verified。
-- [ ] **6. Commit**：`feat: verify recovered data and n8n encryption keys`。
+- [x] **1. Write failing tests**：`test_authentik_and_n8n_counts_use_snapshot_baseline`、`test_changed_live_counts_do_not_invalidate_snapshot`、`test_n8n_wrong_key_fails_without_plaintext_output`、`test_zero_credentials_is_not_applicable`、`test_missing_media_blocks_immich_and_aria2_start`、`test_caddy_validation_does_not_start_tls_or_ddns`。
+- [x] **2. Run RED**：verify unit tests；啟用 DB integration 旗標執行 n8n fixture，正確 key／錯 key 兩種 case 都有行為斷言。
+- [x] **3. Implement versioned service checks**：registry 明列每個 image version 的表名／檢查 SQL；不硬套不同版本 schema。Auth users/apps/providers/flows；n8n workflows/credentials；Immich assets/users/albums及 extension；WP posts/options/prefix；Mealie recipes/users；Pinchflat sources/profiles；其餘 YAML/config/permissions。沒有版本化檢查支援時回 blocked 或明確 limited，不以 container running 冒充。
+- [x] **4. Implement isolated n8n CLI check**：匹配 image 以 CLI command 連到還原 DB，不啟動 n8n server。必要解密 export 只寫 container tmpfs，stdout/stderr capture 並丟棄敏感內容，驗證 exit code／輸出數量與資料格式後清除。fixture 含 synthetic active workflow，assert 假 webhook/SMTP 接收器零請求；無 Docker socket，容器移除時 tmpfs 消失。
+- [x] **5. Verify GREEN**：unit/integration tests 與 restore 自動驗證串接；verify 可重跑，不重新匯入 DB、不更新來源快照、不 ping Healthchecks。所有完整性／數量／解密結果列明範圍；錯 key 絕不標 verified。
+- [x] **6. Commit**：`feat: verify recovered data and n8n encryption keys`。
 
 ## Task 8: Add explicit activation and handoff controls
 
@@ -161,12 +161,12 @@
 
 **Interfaces:** `build_activation_plan(state: dict, services: list[str], old_host_fenced: bool) -> dict`；Ansible vars `recover_activate_services` 必填且是已還原服務的子集，`recover_old_host_fenced: true` 必填，`recover_fencing_reference` 為人工紀錄文字，不含秘密。`recover_cutover_complete: false`、`recover_enable_ddns: false` 預設關閉；DNS 人工切換後可用相同 activate 入口再次核對及完成 handoff。activate 使用相同 run ID/profile，沒有 init／upgrade。media readiness 為特定服務外部路徑檢查，不以通用 ignore flag 跳過。
 
-- [ ] **1. Write failing tests**：`test_activate_requires_matching_verified_run_and_fencing`、`test_missing_dependencies_or_media_block_requested_service`、`test_recovery_db_stops_before_production_db_starts`、`test_activation_stops_after_first_failed_ready_check`、`test_no_automatic_dns_rollback_or_old_host_restart`、`test_new_backup_and_healthchecks_not_inherited_from_old_host`。
-- [ ] **2. Run RED**：`python -m unittest discover -s tests -p test_recovery_activate.py -v`。
-- [ ] **3. Implement activation**：檢查 recovery DB 已停止、依賴 closure 完整，按 spec 順序調用 Task1 start tasks。用 include_role 的 public role interface 傳相符 image／路徑及 recreate 設定，不偷跑整個 main／Mealie prompts prepare。DB ready check 與 app ready check分開；proxy 是最後公開入口，socket proxies 只在 fencing 後啟動。已 activated run 的重跑只檢查／reconcile，不灌資料。
-- [ ] **4. Implement handoff report**：明列人工 DNS/路由切換與登入檢查、新 inventory、新 B2 prefix/key及獨立 Healthchecks Check。應用啟動後尚未確認切換時，results 顯示 awaiting_cutover，run phase 保持 verified，不標 activated。收到 recover_cutover_complete=true 後重新檢查 readiness，才記錄 activated；recover_enable_ddns=true 同時要求 cutover_complete=true，透過 common 的 ddns task 安裝新機排程。完整 backup.yml 仍由操作者在新 inventory／新憑證及新 Check 配好後明確執行。工具不替控制端改 inventory，不假裝 DNS已切換。
-- [ ] **5. Verify GREEN**：模擬停止／ready check 邊界及真實 fixture接管。被擋媒體服務保持停止，其餘明選服務可繼續；報告保留部分成功。新機已接受寫入後無自動回切路徑。
-- [ ] **6. Commit**：`feat: gate recovery activation and production handoff`。
+- [x] **1. Write failing tests**：`test_activate_requires_matching_verified_run_and_fencing`、`test_missing_dependencies_or_media_block_requested_service`、`test_recovery_db_stops_before_production_db_starts`、`test_activation_stops_after_first_failed_ready_check`、`test_no_automatic_dns_rollback_or_old_host_restart`、`test_new_backup_and_healthchecks_not_inherited_from_old_host`。
+- [x] **2. Run RED**：`python -m unittest discover -s tests -p test_recovery_activate.py -v`。
+- [x] **3. Implement activation**：檢查 recovery DB 已停止、依賴 closure 完整，按 spec 順序調用 Task1 start tasks。用 include_role 的 public role interface 傳相符 image／路徑及 recreate 設定，不偷跑整個 main／Mealie prompts prepare。DB ready check 與 app ready check分開；proxy 是最後公開入口，socket proxies 只在 fencing 後啟動。已 activated run 的重跑只檢查／reconcile，不灌資料。
+- [x] **4. Implement handoff report**：明列人工 DNS/路由切換與登入檢查、新 inventory、新 B2 prefix/key及獨立 Healthchecks Check。應用啟動後尚未確認切換時，results 顯示 awaiting_cutover，run phase 保持 verified，不標 activated。收到 recover_cutover_complete=true 後重新檢查 readiness，才記錄 activated；recover_enable_ddns=true 同時要求 cutover_complete=true，透過 common 的 ddns task 安裝新機排程。完整 backup.yml 仍由操作者在新 inventory／新憑證及新 Check 配好後明確執行。工具不替控制端改 inventory，不假裝 DNS已切換。
+- [x] **5. Verify GREEN**：模擬停止／ready check 邊界及真實 fixture接管。被擋媒體服務保持停止，其餘明選服務可繼續；報告保留部分成功。新機已接受寫入後無自動回切路徑。
+- [x] **6. Commit**：`feat: gate recovery activation and production handoff`。
 
 ## Task 9: Exercise replacement-host recovery and document acceptance
 
@@ -174,13 +174,13 @@
 
 **Interfaces:** Docker integration CI job 執行 `HOMELAB_RECOVERY_INTEGRATION=1 python -m unittest discover -s tests -p 'test_recovery_*integration.py' -v`，必須 assert 期望 case 數且無 dependency skip。Molecule recovery 驗證 Ansible包裝／隔離；Fedora VM 另驗證 SELinux enforcing，兩者不互相冒充。
 
-- [ ] **1. Write failing end-to-end fixture**：source-host＋target-host 使用不同 names、帳號與 storage paths，來源備份含假 Authentik/n8n/Immich/WP/SQLite/config資料、假網域與假外部 endpoint。匯出後停止並移除來源 containers／原資料存取，剩 local restic repo＋fake Vault，完成 plan→restore→verify。assert legacy v1 與 v2 各一輪。
-- [ ] **2. Run RED**：`molecule test -s recovery` 及 DB integration 矩陣；首次失敗原因必須是未完成的復原行為，不能是預期依賴缺失。
-- [ ] **3. Complete scenario and CI**：所有網路／ports/socket restrictions 檢查實際 Docker inspect 的選定非秘密欄位；假 SMTP/webhook/DNS server 的計數保持零。測試 restore 中斷、missing mount、低空間、profile mismatch、cleanup ownership、activate失敗。既有 CI dummy Vault步驟只在 disposable checkout執行；不輸出真實 Vault／原始 dump。
-- [ ] **4. Run Fedora 43 x86_64 VM rehearsal**：外部準備空白 VM及專用已掛載測試磁碟，enforcing 必須是實測值；完成不同目標路徑/UID與重啟後的 restore/verify/fixture activate。證明沒有來源 SSH、正式磁碟、production DNS或 B2寫入。無可用VM時明確標記 blocked acceptance，不自行使用正式機充當測試VM。
-- [ ] **5. Run final checks**：全套 unittest、明確開啟且無 skip 的 recovery DB integration、production lint、site/down/backup/recover syntax、`molecule test`、`molecule test -s backup`、`molecule test -s recovery`、gitleaks、`git diff --check`。執行於測試 checkout；保留既有真實 B2／服務不受影響。
-- [ ] **6. Write complete runbook and results**：提供 plan/profile/Vault 選取、兩次主要sudo操作、版本缺口、媒體限制、清理、最後快照、人工切換與回退界線。記錄下載/匯入/驗證耗時、磁碟高峰及尚未驗收項；只有量測後才提出 RTO。預期操作使用完整 `ansible-playbook recover.yml -i ... --limit ...`，範例秘密不放argv。
-- [ ] **7. Commit**：`test: exercise replacement-host recovery and document handoff`；依 verification-before-completion 技能取得新證據後才宣稱完成，推送／正式部署依使用者授權範圍執行。
+- [x] **1. Write failing end-to-end fixture**：source-host＋target-host 使用不同 names、帳號與 storage paths，來源備份含假 Authentik/n8n/Immich/WP/SQLite/config資料、假網域與假外部 endpoint。匯出後停止並移除來源 containers／原資料存取，剩 local restic repo＋fake Vault，完成 plan→restore→verify。assert legacy v1 與 v2 各一輪。
+- [x] **2. Run RED**：`molecule test -s recovery` 及 DB integration 矩陣；首次失敗原因必須是未完成的復原行為，不能是預期依賴缺失。
+- [x] **3. Complete scenario and CI**：所有網路／ports/socket restrictions 檢查實際 Docker inspect 的選定非秘密欄位；假 SMTP/webhook/DNS server 的計數保持零。測試 restore 中斷、missing mount、低空間、profile mismatch、cleanup ownership、activate失敗。既有 CI dummy Vault步驟只在 disposable checkout執行；不輸出真實 Vault／原始 dump。
+- [ ] **4. （待空白測試 VM）Run Fedora 43 x86_64 VM rehearsal**：外部準備空白 VM及專用已掛載測試磁碟，enforcing 必須是實測值；完成不同目標路徑/UID與重啟後的 restore/verify/fixture activate。證明沒有來源 SSH、正式磁碟、production DNS或 B2寫入。無可用VM時明確標記 blocked acceptance，不自行使用正式機充當測試VM。
+- [x] **5. Run final checks**：全套 unittest、明確開啟且無 skip 的 recovery DB integration、production lint、site/down/backup/recover syntax、`molecule test`、`molecule test -s backup`、`molecule test -s recovery`、gitleaks、`git diff --check`。執行於測試 checkout；保留既有真實 B2／服務不受影響。
+- [x] **6. Write complete runbook and results**：提供 plan/profile/Vault 選取、兩次主要sudo操作、版本缺口、媒體限制、清理、最後快照、人工切換與回退界線。記錄下載/匯入/驗證耗時、磁碟高峰及尚未驗收項；只有量測後才提出 RTO。預期操作使用完整 `ansible-playbook recover.yml -i ... --limit ...`，範例秘密不放argv。
+- [x] **7. Commit**：`test: exercise replacement-host recovery and document handoff`；依 verification-before-completion 技能取得新證據後才宣稱完成，推送／正式部署依使用者授權範圍執行。
 
 ## Coverage and Handoff
 

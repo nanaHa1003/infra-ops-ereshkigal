@@ -1,0 +1,18 @@
+---
+dependency:
+  name: galaxy
+driver:
+  name: docker
+platforms:
+  - name: homelab-recovery-test
+    image: geerlingguy/docker-fedora40-ansible:latest
+    pre_build_image: true
+    privileged: true
+    command: /sbin/init
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+provisioner:
+  name: ansible
+verifier:
+  name: ansible

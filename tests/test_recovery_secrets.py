@@ -27,3 +27,15 @@ class RecoverySecrets(unittest.TestCase):
             self.assertNotIn("fixture-new-key", encoded)
 
 if __name__ == "__main__": unittest.main()
+
+class DatabaseIdentity(unittest.TestCase):
+    def test_same_password_does_not_hide_changed_wordpress_database_identity(self):
+        module=importlib.import_module('recovery_files')
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary).resolve();(root/'wordpress-compose').mkdir()
+            (root/'wordpress-compose/docker-compose.yml').write_text('services:\n  mariadb:\n    image: mariadb:fixed\n    environment:\n      MYSQL_PASSWORD: same-password\n      MYSQL_USER: old-user\n      MYSQL_DATABASE: old-database\n')
+            model={'selection':{'tree_root':'/'},'services':['wordpress']}
+            result=module.compare_recovery_secrets(model,root,{'wordpress':{'mysql_password':'same-password','mysql_user':'new-user','mysql_database':'new-database'}})
+            fields={row['field']:row['matched'] for row in result}
+            self.assertFalse(fields.get('wordpress.mysql_user',True))
+            self.assertFalse(fields.get('wordpress.mysql_database',True))

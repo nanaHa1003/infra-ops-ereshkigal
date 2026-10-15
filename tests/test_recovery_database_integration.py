@@ -65,6 +65,14 @@ class RealDatabaseRecovery(unittest.TestCase):
             target = {'storage_root': str(base/'storage'), 'stack_root': str(base/'stack'), 'storage_mount': '/', 'scratch_root': str(scratch), 'services': [service], 'run_id': run, 'registry': {service: {'sources': {'database': {'kind': kind, 'target': 'db', 'layout': 'database', 'owner': 0, 'group': 0, 'mode': '0700'}}}}, 'image_variables': {DB_IMAGES[service]: image}, 'secrets': {'authentik': {'pgpass': 'fake-app'}, 'n8n': {'postgres_user': 'app', 'postgres_db': 'appdb', 'postgres_password': 'fake-app'}, 'immich': {'db_username': 'app', 'db_database_name': 'appdb', 'db_password': 'fake-app'}, 'wordpress': {'mysql_user': 'app', 'mysql_database': 'appdb', 'mysql_password': 'fake-app'}}}
             result = restore_database(service, model, target, state)
             self.assertEqual(result['status'], 'passed')
+            inspection=json.loads(_docker(['inspect','--format','{"host":{{json .HostConfig}},"mounts":{{json .Mounts}},"run":{{json (index .Config.Labels "homelab.recovery.run")}}}',state['databases'][service]['name']]))
+            self.assertFalse(inspection['host'].get('Privileged'))
+            self.assertFalse(inspection['host'].get('PortBindings'))
+            self.assertNotEqual(inspection['host'].get('NetworkMode'),'host')
+            self.assertFalse(any(row.get('Destination') in ('/var/run/docker.sock','/run/podman/podman.sock') for row in inspection['mounts']))
+            self.assertEqual(inspection['run'],run)
+            network=json.loads(_docker(['network','inspect','--format','{{json .Internal}}',state['databases'][service]['network']]))
+            self.assertTrue(network)
             recovered = database_spec(service, model, target, state)
             if postgres:
                 self.assertEqual(pg_sql(recovered, 'SELECT name FROM parent WHERE id=1;', 'appdb'), 'fixture')

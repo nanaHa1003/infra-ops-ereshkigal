@@ -101,7 +101,8 @@ class RecoveryDatabases(unittest.TestCase):
 
 if __name__ == "__main__": unittest.main()
 
-class AdditionalDatabaseChecks(RecoveryDatabases):
+class AdditionalDatabaseChecks(unittest.TestCase):
+    setUp=RecoveryDatabases.setUp
     def test_postgres_named_database_uses_alter_owner_to(self):
         spec = {'app_user': 'app', 'database': 'postgres', 'import_role': 'temporary', 'app_password': 'fake'}
         self.assertIn('ALTER DATABASE "postgres" OWNER TO "app";', self.module.postgres_setup_sql(spec))
