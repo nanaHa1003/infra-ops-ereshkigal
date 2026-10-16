@@ -1,0 +1,7 @@
+---
+- name: Refuse package removal during non-destructive bootstrap
+  ansible.builtin.assert:
+    that:
+      - common_remove_conflicts | bool or (ansible_facts.packages.keys() | list | intersect(['podman', 'podman-docker', 'buildah', 'skopeo']) | length == 0)
+    fail_msg: "Conflicting container packages must be resolved before recovery; no packages were removed."
+    quiet: true

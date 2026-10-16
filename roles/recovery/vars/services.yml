@@ -1,0 +1,302 @@
+---
+recovery_service_registry:
+  proxy:
+    sources:
+      caddy-data:
+        kind: files
+        target: caddy/data
+        layout: directory
+        owner: 0
+        group: 0
+        mode: '0600'
+        required: true
+      caddy-config:
+        kind: files
+        target: caddy/config
+        layout: directory
+        owner: 0
+        group: 0
+        mode: '0600'
+        required: true
+      caddyfile:
+        kind: files
+        layout: reference
+        required: true
+      ddns:
+        kind: files
+        layout: reference
+        required: true
+      proxy-compose:
+        kind: files
+        layout: reference
+        required: true
+      socket-compose:
+        kind: files
+        layout: reference
+        required: true
+    storage_prefix: caddy
+  auth:
+    sources:
+      authentik-db:
+        kind: postgres
+        target: authentik/postgresql
+        layout: database
+        owner: 70
+        group: 70
+        mode: '0600'
+        required: true
+      authentik-templates:
+        kind: files
+        target: authentik/templates
+        layout: directory
+        owner: 1000
+        group: 1000
+        mode: '0600'
+        required: true
+      auth-compose:
+        kind: files
+        layout: reference
+        required: true
+    storage_prefix: authentik
+    verification:
+      image_pattern: :2026\.5\.
+      tables:
+        users: authentik_core_user
+        applications: authentik_core_application
+        providers: authentik_core_provider
+        flows: authentik_flows_flow
+  wordpress:
+    sources:
+      wordpress-db:
+        kind: mariadb
+        target: wordpress/db
+        layout: database
+        owner: 999
+        group: 999
+        mode: '0600'
+        required: true
+      wordpress-config:
+        kind: files
+        target: wordpress/html/wp-config.php
+        layout: file
+        owner: 1000
+        group: 1000
+        mode: '0600'
+        required: true
+        root: wordpress/html
+      wordpress-themes:
+        kind: files
+        target: wordpress/html/wp-content/themes
+        layout: directory
+        owner: 1000
+        group: 1000
+        mode: '0600'
+        required: true
+        root: wordpress/html
+      wordpress-plugins:
+        kind: files
+        target: wordpress/html/wp-content/plugins
+        layout: directory
+        owner: 1000
+        group: 1000
+        mode: '0600'
+        required: true
+        root: wordpress/html
+      wordpress-mu-plugins:
+        kind: files
+        target: wordpress/html/wp-content/mu-plugins
+        layout: directory
+        owner: 1000
+        group: 1000
+        mode: '0600'
+        required: false
+        root: wordpress/html
+      wordpress-htaccess:
+        kind: files
+        target: wordpress/html/.htaccess
+        layout: file
+        owner: 1000
+        group: 1000
+        mode: '0600'
+        required: false
+        root: wordpress/html
+      wordpress-compose:
+        kind: files
+        layout: reference
+        required: true
+    storage_prefix: wordpress
+  pinchflat:
+    sources:
+      pinchflat-db:
+        kind: sqlite
+        target: pinchflat/config/db/pinchflat.db
+        layout: file
+        owner: 1000
+        group: 1000
+        mode: '0600'
+        required: true
+      pinchflat-extras:
+        kind: files
+        target: pinchflat/config/extras
+        layout: directory
+        owner: 1000
+        group: 1000
+        mode: '0600'
+        required: true
+      pinchflat-compose:
+        kind: files
+        layout: reference
+        required: true
+    storage_prefix: pinchflat
+    verification:
+      image_pattern: :v2026\.
+      tables:
+        sources: sources
+        profiles: media_profiles
+  immich:
+    sources:
+      immich-db:
+        kind: postgres
+        target: immich/postgres
+        layout: database
+        owner: 999
+        group: 0
+        mode: '0600'
+        required: true
+      immich-compose:
+        kind: files
+        layout: reference
+        required: true
+    storage_prefix: immich
+    verification:
+      image_pattern: :v2\.
+      tables:
+        assets: asset
+        users: user
+        albums: album
+  mealie:
+    sources:
+      mealie-db:
+        kind: sqlite
+        target: mealie/data/mealie.db
+        layout: file
+        owner: 1000
+        group: 1000
+        mode: '0600'
+        required: true
+      mealie-prompts:
+        kind: files
+        target: mealie/prompts
+        layout: directory
+        owner: 1000
+        group: 1000
+        mode: '0600'
+        required: true
+      mealie-compose:
+        kind: files
+        layout: reference
+        required: true
+    storage_prefix: mealie
+    verification:
+      image_pattern: :v3\.
+      tables:
+        recipes: recipes
+        users: users
+  homepage:
+    sources:
+      homepage-config:
+        kind: files
+        target: homepage/config
+        layout: directory
+        owner: 1000
+        group: 1000
+        mode: '0600'
+        required: true
+      homepage-compose:
+        kind: files
+        layout: reference
+        required: true
+    storage_prefix: homepage
+  n8n:
+    sources:
+      n8n-db:
+        kind: postgres
+        target: n8n/postgres
+        layout: database
+        owner: 1000
+        group: 1000
+        mode: '0600'
+        required: true
+      n8n-key:
+        kind: files
+        target: n8n/data/config
+        layout: file
+        owner: 1000
+        group: 1000
+        mode: '0600'
+        required: true
+      n8n-compose:
+        kind: files
+        layout: reference
+        required: true
+    storage_prefix: n8n
+    verification:
+      image_pattern: :2\.28\.
+      tables:
+        workflows: workflow_entity
+        credentials: credentials_entity
+  aria2:
+    sources:
+      aria2-config:
+        kind: files
+        target: aria2/config/aria2.conf
+        layout: file
+        owner: 1000
+        group: 1000
+        mode: '0600'
+        required: true
+      aria2-settings:
+        kind: files
+        target: aria2/config/setting.conf
+        layout: file
+        owner: 1000
+        group: 1000
+        mode: '0600'
+        required: true
+      aria2-script-settings:
+        kind: files
+        target: aria2/config/script.conf
+        layout: file
+        owner: 1000
+        group: 1000
+        mode: '0600'
+        required: true
+      aria2-file-filter:
+        kind: files
+        target: "aria2/config/\u6587\u4EF6\u8FC7\u6EE4.conf"
+        layout: file
+        owner: 1000
+        group: 1000
+        mode: '0600'
+        required: true
+      aria2-scripts:
+        kind: files
+        target: aria2/config/script
+        layout: directory
+        owner: 1000
+        group: 1000
+        mode: '0700'
+        required: true
+      aria2-session:
+        kind: aria2_session
+        target: aria2/config/aria2.session
+        layout: file
+        owner: 1000
+        group: 1000
+        mode: '0600'
+        required: true
+      aria2-compose:
+        kind: files
+        layout: reference
+        required: true
+    storage_prefix: aria2

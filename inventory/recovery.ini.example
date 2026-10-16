@@ -1,0 +1,3 @@
+# Dedicated replacement target. Keep it out of [homelab] until handoff.
+[recovery_targets]
+replacement ansible_host=192.0.2.20 ansible_user=operator ansible_python_interpreter=/usr/bin/python3

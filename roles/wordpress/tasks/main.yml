@@ -1,25 +1,6 @@
 ---
-- name: Create WordPress stack directory
-  ansible.builtin.file:
-    path: "{{ stack_root }}/wordpress"
-    state: directory
-    owner: 0
-    group: 0
-    mode: '0755'
+- name: Prepare wordpress deployment
+  ansible.builtin.import_tasks: prepare.yml
 
-- name: Deploy WordPress Compose
-  ansible.builtin.template:
-    src: wordpress.yml.j2
-    dest: "{{ stack_root }}/wordpress/docker-compose.yml"
-    mode: '0600'
-  diff: false
-  no_log: true
-  register: wordpress_compose
-
-- name: Start/Update WordPress
-  community.docker.docker_compose_v2:
-    project_src: "{{ stack_root }}/wordpress"
-    state: present
-    pull: "{{ 'always' if pull_images | default(false) | bool else 'missing' }}"
-    recreate: "{{ 'always' if wordpress_force_restart | bool else 'auto' }}"
-  tags: [molecule-notest]
+- name: Start wordpress deployment
+  ansible.builtin.import_tasks: start.yml

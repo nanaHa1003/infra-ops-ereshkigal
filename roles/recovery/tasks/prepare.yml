@@ -1,0 +1,113 @@
+---
+- name: Read pinned service image plan
+  ansible.builtin.set_fact:
+    recovery_pinned_plan: '{{ lookup(''ansible.builtin.file'', recover_plan_file) | from_json }}'
+  no_log: true
+- name: Protect replacement storage and stack roots
+  ansible.builtin.file:
+    path: '{{ item }}'
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+  loop:
+    - '{{ storage_root }}'
+    - '{{ stack_root }}'
+- name: Prepare selected service directories
+  ansible.builtin.file:
+    path: '{{ storage_root }}/{{ item.path }}'
+    state: directory
+    owner: '{{ item.owner }}'
+    group: '{{ item.group }}'
+    mode: '{{ item.mode }}'
+  loop: '{{ recovery_storage_permissions }}'
+- name: Label replacement service storage
+  community.general.sefcontext:
+    target: '{{ storage_root }}(/.*)?'
+    setype: container_file_t
+    state: present
+  when: ansible_facts.selinux.status | default('disabled') == 'enabled'
+- name: Prepare shared networks without starting proxies
+  ansible.builtin.include_role:
+    name: proxy
+    tasks_from: networks.yml
+- name: Prepare pinned proxy files
+  ansible.builtin.include_role:
+    name: proxy
+    tasks_from: prepare.yml
+  vars:
+    proxy_caddy_image: '{{ recovery_pinned_plan.image_variables.proxy_caddy_image }}'
+    proxy_socket_proxy_image: '{{ recovery_pinned_plan.image_variables.proxy_socket_proxy_image }}'
+  when: '''proxy'' in recover_services'
+- name: Prepare pinned auth files
+  ansible.builtin.include_role:
+    name: auth
+    tasks_from: prepare.yml
+  vars:
+    auth_postgres_image: '{{ recovery_pinned_plan.image_variables.auth_postgres_image }}'
+    auth_redis_image: '{{ recovery_pinned_plan.image_variables.auth_redis_image }}'
+    auth_authentik_image: '{{ recovery_pinned_plan.image_variables.auth_authentik_image }}'
+  when: '''auth'' in recover_services'
+- name: Prepare pinned wordpress files
+  ansible.builtin.include_role:
+    name: wordpress
+    tasks_from: prepare.yml
+  vars:
+    wordpress_mariadb_auto_upgrade: false
+    wordpress_image: '{{ recovery_pinned_plan.image_variables.wordpress_image }}'
+    wordpress_mariadb_image: '{{ recovery_pinned_plan.image_variables.wordpress_mariadb_image }}'
+  when: '''wordpress'' in recover_services'
+- name: Prepare pinned pinchflat files
+  ansible.builtin.include_role:
+    name: pinchflat
+    tasks_from: prepare.yml
+  vars:
+    pinchflat_image: '{{ recovery_pinned_plan.image_variables.pinchflat_image }}'
+  when: '''pinchflat'' in recover_services'
+- name: Prepare pinned immich files
+  ansible.builtin.include_role:
+    name: immich
+    tasks_from: prepare.yml
+  vars:
+    immich_server_image: '{{ recovery_pinned_plan.image_variables.immich_server_image }}'
+    immich_ml_image: '{{ recovery_pinned_plan.image_variables.immich_ml_image }}'
+    immich_postgres_image: '{{ recovery_pinned_plan.image_variables.immich_postgres_image }}'
+    immich_redis_image: '{{ recovery_pinned_plan.image_variables.immich_redis_image }}'
+  when: '''immich'' in recover_services'
+- name: Prepare pinned mealie files
+  ansible.builtin.include_role:
+    name: mealie
+    tasks_from: prepare.yml
+  vars:
+    mealie_image: '{{ recovery_pinned_plan.image_variables.mealie_image }}'
+  when: '''mealie'' in recover_services'
+- name: Prepare pinned homepage files
+  ansible.builtin.include_role:
+    name: homepage
+    tasks_from: prepare.yml
+  vars:
+    homepage_image: '{{ recovery_pinned_plan.image_variables.homepage_image }}'
+  when: '''homepage'' in recover_services'
+- name: Prepare pinned n8n files
+  ansible.builtin.include_role:
+    name: n8n
+    tasks_from: prepare.yml
+  vars:
+    n8n_image: '{{ recovery_pinned_plan.image_variables.n8n_image }}'
+    n8n_postgres_image: '{{ recovery_pinned_plan.image_variables.n8n_postgres_image }}'
+  when: '''n8n'' in recover_services'
+- name: Prepare pinned aria2 files
+  ansible.builtin.include_role:
+    name: aria2
+    tasks_from: prepare.yml
+  vars:
+    aria2_image: '{{ recovery_pinned_plan.image_variables.aria2_image }}'
+  when: '''aria2'' in recover_services'
+- name: Apply replacement SELinux labels
+  ansible.builtin.command:
+    argv:
+      - restorecon
+      - -R
+      - '{{ storage_root }}'
+  changed_when: false
+  when: ansible_facts.selinux.status | default('disabled') == 'enabled'

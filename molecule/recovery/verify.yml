@@ -1,0 +1,46 @@
+---
+- name: Verify isolated legacy and v2 recovery backends
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Recover real local snapshots after deleting original source data
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3
+          - -m
+          - unittest
+          - discover
+          - -s
+          - /opt/recovery-fixture/tests
+          - -p
+          - test_recovery_end_to_end.py
+          - -v
+      environment:
+        HOMELAB_FIXTURE_UID: '1007'
+        HOMELAB_FIXTURE_GID: '1008'
+      changed_when: false
+    - name: Execute actual dynamic Ansible prepare includes for every service as root
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3
+          - -m
+          - unittest
+          - discover
+          - -s
+          - /opt/recovery-fixture/tests
+          - -p
+          - test_recovery_ansible.py
+          - -v
+      changed_when: false
+    - name: Check that no DDNS or backup packaging was installed
+      ansible.builtin.stat:
+        path: '{{ item }}'
+      loop:
+        - /etc/homelab-backup
+        - /etc/homelab-recovery
+        - /usr/local/bin/ddupdate.sh
+      register: recovery_unwanted
+    - name: Assert fixture did not install production jobs or secrets
+      ansible.builtin.assert:
+        that: not item.stat.exists
+      loop: '{{ recovery_unwanted.results }}'

@@ -83,7 +83,7 @@
     owner: root
     group: root
     mode: "0700"
-  loop: [backup_runner.py, backup_sources.py]
+  loop: [backup_runner.py, backup_sources.py, backup_common.py, backup_manifest.py]
 
 - name: Deploy protected backup configuration
   ansible.builtin.template:

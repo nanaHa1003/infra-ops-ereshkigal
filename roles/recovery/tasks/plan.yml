@@ -1,0 +1,28 @@
+---
+- name: Generate source-scoped recovery plan on controller
+  ansible.builtin.command:
+    argv:
+      - "{{ ansible_playbook_python }}"
+      - "{{ role_path }}/files/recovery_runner.py"
+      - --config-stdin
+      - plan
+    stdin: "{{ lookup('ansible.builtin.template', 'config.json.j2') }}"
+    chdir: "{{ playbook_dir }}"
+  delegate_to: localhost
+  become: false
+  register: recovery_plan_result
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  no_log: true
+
+- name: Show recovery plan outcome
+  ansible.builtin.debug:
+    msg: "{{ recovery_plan_result.stdout | default('{}', true) | from_json }}"
+  when: recovery_plan_result.stdout | default('') | length > 0
+
+- name: Require completed recovery preflight
+  ansible.builtin.assert:
+    that: recovery_plan_result.rc == 0
+    fail_msg: "Recovery plan is incomplete or blocked; inspect the plan report. No bootstrap was performed."
+    quiet: true

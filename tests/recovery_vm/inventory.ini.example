@@ -1,0 +1,3 @@
+# A disposable Fedora43 x86_64 VM, never the existing homelab server.
+[recovery_targets]
+recovery-vm ansible_host=192.0.2.43 ansible_user=testoperator ansible_python_interpreter=/usr/bin/python3

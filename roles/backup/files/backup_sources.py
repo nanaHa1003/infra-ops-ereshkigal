@@ -13,23 +13,7 @@ import time
 import urllib.request
 
 
-class BackupError(Exception):
-    """A sanitized operational failure; never include raw subprocess output."""
-
-
-def safe_id(value):
-    if not isinstance(value, str) or not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}", value):
-        raise BackupError("invalid identifier")
-    return value
-
-
-def checked_path(value):
-    path = Path(value)
-    if not path.is_absolute() or ".." in path.parts:
-        raise BackupError("invalid absolute path")
-    if any(parent.is_symlink() for parent in (path, *path.parents)):
-        raise BackupError("symlink source or destination rejected")
-    return path
+from backup_common import BackupError, checked_path, safe_id
 
 
 def command(args, *, output=None, input_file=None, timeout=1200):
@@ -107,9 +91,10 @@ def sqlite_export(source, destination):
 
 PG_PREFIX = 'export PGPASSWORD="$POSTGRES_PASSWORD"; '
 PG_DUMP = PG_PREFIX + 'exec pg_dump --username="$POSTGRES_USER" --dbname="$POSTGRES_DB" --format=custom --no-owner --no-acl'
-PG_METADATA = PG_PREFIX + '''exec psql --username="$POSTGRES_USER" --dbname="$POSTGRES_DB" --no-psqlrc --tuples-only --no-align --command="SELECT json_build_object('version',version(),'database',current_database(),'role',current_user,'extensions',(SELECT json_agg(json_build_object('name',extname,'version',extversion)) FROM pg_extension))"'''
+PG_METADATA = PG_PREFIX + '''exec psql --username="$POSTGRES_USER" --dbname="$POSTGRES_DB" --no-psqlrc --tuples-only --no-align --command="SELECT json_build_object('version',version(),'database',current_database(),'role',current_user,'preload_libraries',current_setting('shared_preload_libraries'),'extensions',(SELECT json_agg(json_build_object('name',extname,'version',extversion)) FROM pg_extension))"'''
 MYSQL_PREFIX = 'export MYSQL_PWD="$MYSQL_PASSWORD"; '
 MYSQL_ENGINES = MYSQL_PREFIX + '''exec mariadb --user="$MYSQL_USER" --database="$MYSQL_DATABASE" --batch --skip-column-names --execute="SELECT DISTINCT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_TYPE='BASE TABLE'"'''
+MYSQL_METADATA = MYSQL_PREFIX + 'exec mariadb --user="$MYSQL_USER" --database="$MYSQL_DATABASE" --batch --skip-column-names --execute="SELECT JSON_OBJECT(\'version\',VERSION(),\'database\',DATABASE(),\'role\',SUBSTRING_INDEX(CURRENT_USER(),\'@\',1),\'definers\',(SELECT COALESCE(JSON_ARRAYAGG(d.DEFINER),JSON_ARRAY()) FROM (SELECT DEFINER FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA=DATABASE() UNION SELECT DEFINER FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA=DATABASE() UNION SELECT DEFINER FROM information_schema.EVENTS WHERE EVENT_SCHEMA=DATABASE() UNION SELECT DEFINER FROM information_schema.VIEWS WHERE TABLE_SCHEMA=DATABASE()) d))"'
 MYSQL_DUMP = MYSQL_PREFIX + 'exec mariadb-dump --user="$MYSQL_USER" --single-transaction --quick --routines --events --triggers --hex-blob --skip-lock-tables --databases "$MYSQL_DATABASE"'
 
 
@@ -128,7 +113,8 @@ def database_export(source, destination):
         engines = command(prefix + ["sh", "-c", MYSQL_ENGINES]).decode().split()
         if any(engine.upper() != "INNODB" for engine in engines):
             raise BackupError("nontransactional MariaDB tables require a separate consistency plan")
-        metadata = {"version": command(prefix + ["mariadb", "--version"]).decode().strip(), "engines": engines}
+        metadata = json.loads(command(prefix + ["sh", "-c", MYSQL_METADATA]))
+        metadata["engines"] = engines
         target = destination / "database.sql"
         with target.open("wb") as output:
             command(prefix + ["sh", "-c", MYSQL_DUMP], output=output)

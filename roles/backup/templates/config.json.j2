@@ -1,6 +1,8 @@
 {
   "state_root": {{ backup_state_root | to_json }},
   "host": {{ inventory_hostname | to_json }},
+  "domain": {{ domain | default(none) | to_json }},
+  "deployment": {{ backup_deployment_metadata | to_json }},
   "repositories": {
 {% for name, repository in backup_repositories.items() %}
     {{ name | to_json }}: {{ repository | combine(vault_secrets.backup.repositories[name]) | to_json }}{{ ',' if not loop.last else '' }}
@@ -12,6 +14,7 @@
       "repository": {{ job.repository | to_json }},
       "healthchecks_ping_url": {{ vault_secrets.backup.jobs[name].healthchecks_ping_url | to_json }},
       "retention": {{ job.retention | default(backup_retention) | to_json }},
+      "service_projects": {{ job.service_projects | default({}) | to_json }},
       "sources": [
 {% for source in job.sources %}
         {{ (source | combine({'rpc_secret': vault_secrets.aria2.rpc_secret}) if source.kind == 'aria2_session' else source) | to_json }}{{ ',' if not loop.last else '' }}

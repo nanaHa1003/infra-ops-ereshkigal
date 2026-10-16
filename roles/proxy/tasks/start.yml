@@ -1,0 +1,5 @@
+---
+- name: Start Caddy reverse proxy
+  ansible.builtin.import_tasks: start-caddy.yml
+- name: Start Docker socket proxies
+  ansible.builtin.import_tasks: start-sockets.yml

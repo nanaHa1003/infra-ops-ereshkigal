@@ -19,6 +19,16 @@ backup_repositories:
 backup_jobs:
   database:
     repository: database
+    service_projects:
+      proxy: proxy
+      auth: auth
+      wordpress: wordpress
+      pinchflat: pinchflat
+      immich: immich
+      mealie: mealie
+      homepage: homepage
+      n8n: n8n
+      aria2: aria2
     sources:
       - {id: authentik-db, kind: postgres, container: auth-postgresql-1}
       - {id: n8n-db, kind: postgres, container: n8n-n8n-postgres-1}

@@ -1,0 +1,8 @@
+---
+- name: Start/Update Aria2
+  community.docker.docker_compose_v2:
+    project_src: "{{ stack_root }}/aria2"
+    state: present
+    pull: "{{ 'always' if pull_images | default(false) | bool else 'missing' }}"
+    recreate: "{{ 'always' if aria2_force_restart | bool else 'auto' }}"
+  tags: [molecule-notest]

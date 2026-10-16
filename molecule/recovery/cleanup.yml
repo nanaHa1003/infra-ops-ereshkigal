@@ -1,0 +1,9 @@
+---
+- name: Keep recovery fixture cleanup inside disposable container lifecycle
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Document the lifecycle cleanup boundary
+      ansible.builtin.debug:
+        msg: All synthetic fixture data is removed with the scenario container by Molecule destroy.

@@ -1,0 +1,35 @@
+---
+- name: Inspect disposable replacement host acceptance prerequisites
+  hosts: recovery_targets
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Require an explicitly named disposable VM and local fixture repository
+      ansible.builtin.assert:
+        that:
+          - recovery_vm_disposable | default(false) | bool
+          - ansible_limit | default('') | length > 0
+          - ansible_play_hosts_all | length == 1
+          - ansible_facts.distribution == 'Fedora'
+          - ansible_facts.distribution_major_version == '43'
+          - ansible_facts.architecture == 'x86_64'
+          - ansible_facts.selinux.status == 'enabled'
+          - ansible_facts.selinux.mode == 'enforcing'
+          - recover_repositories[recover_source.repository].url.startswith('/')
+          - recover_source.host.endswith('.example')
+        quiet: true
+    - name: Read actual storage mount state
+      ansible.builtin.command:
+        argv: [findmnt, --mountpoint, '{{ recover_storage_mount }}', --noheadings, --output, TARGET]
+      changed_when: false
+    - name: Read protected recovery result
+      ansible.builtin.slurp:
+        src: '{{ recover_state_root | default("/var/lib/homelab-recovery") }}/runs/{{ recover_run_id }}/report.json'
+      register: recovery_vm_report
+      no_log: true
+    - name: Require verified data from a synthetic snapshot
+      ansible.builtin.assert:
+        that:
+          - (recovery_vm_report.content | b64decode | from_json).phase == 'verified'
+          - (recovery_vm_report.content | b64decode | from_json).run_id == recover_run_id
+        quiet: true

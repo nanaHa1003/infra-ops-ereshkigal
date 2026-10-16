@@ -1,0 +1,22 @@
+---
+- name: Deploy protected recovery configuration
+  ansible.builtin.template:
+    src: config.json.j2
+    dest: "{{ recovery_config_dir }}/config.json"
+    owner: root
+    group: root
+    mode: '0600'
+  vars:
+    recovery_remote_config: true
+  diff: false
+  no_log: true
+
+- name: Install pinned recovery plan
+  ansible.builtin.copy:
+    src: "{{ recover_plan_file }}"
+    dest: "{{ recovery_config_dir }}/plan.json"
+    owner: root
+    group: root
+    mode: '0600'
+  diff: false
+  no_log: true

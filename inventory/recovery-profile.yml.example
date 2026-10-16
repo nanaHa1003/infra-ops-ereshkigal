@@ -1,0 +1,32 @@
+---
+# Prepare Linux Docker Engine + Compose v2, Restic, Python3/PyYAML first.
+# Recovery does not bootstrap a distribution or install/remove host packages.
+recover_phase: plan
+recover_source:
+  repository: database
+  host: ereshkigal.netbird.cloud
+  job: database
+  staging_path: /var/lib/homelab-backup/staging/database
+  snapshot: latest
+recover_repositories:
+  database:
+    url: s3:https://s3.us-west-004.backblazeb2.com/homelab-db-snapshots/ereshkigal
+recover_services: [proxy, auth, homepage, n8n]
+recover_storage_mount: /srv/storage
+recover_min_free_bytes: 21474836480
+storage_root: /srv/storage/homelab
+stack_root: /opt/homelab
+# After plan: provide recover_plan_file with the generated controller path.
+# Legacy snapshots need an explicit recover_legacy_profile with source kinds,
+# original file artifacts and service-labelled, registry-pinned image records.
+
+# Activation is separate: review docs/recovery.md and the protected report first.
+# recover_activate_services: [auth, homepage, n8n, proxy]
+# recover_old_host_fenced: true
+# recover_fencing_reference: "original host powered off and routes disabled"
+# recover_cutover_complete: false
+# recover_enable_ddns: false
+# recover_accept_limited:
+#   auth: "reviewed snapshot count limitation and tested local login"
+#   homepage: "reviewed restored YAML/config and Docker integrations"
+#   n8n: "reviewed counts and successful credential decryption"

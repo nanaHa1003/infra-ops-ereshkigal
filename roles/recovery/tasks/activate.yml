@@ -1,0 +1,58 @@
+---
+- name: Require explicit production handoff request
+  ansible.builtin.assert:
+    that:
+      - recover_activate_services is defined and recover_activate_services is sequence and recover_activate_services is not string
+      - recover_activate_services | length > 0
+      - recover_old_host_fenced | default(false) | bool
+      - recover_fencing_reference | default('') | length > 0
+      - not recover_enable_ddns | default(false) | bool or recover_cutover_complete | default(false) | bool
+    quiet: true
+
+- name: Refresh protected activation configuration
+  ansible.builtin.import_tasks: config.yml
+
+- name: Stop recovery databases and record application start intent
+  ansible.builtin.command:
+    argv: [/usr/bin/python3, '{{ recovery_program_dir }}/recovery_runner.py', --config, '{{ recovery_config_dir }}/config.json', activation-begin]
+  register: recovery_activation_begin
+  changed_when: recovery_activation_begin.rc == 0
+  no_log: true
+
+- name: Read pinned activation images
+  ansible.builtin.set_fact:
+    recovery_pinned_plan: "{{ lookup('ansible.builtin.file', recover_plan_file) | from_json }}"
+  no_log: true
+
+- name: Start socket proxies after fencing
+  ansible.builtin.include_role:
+    name: proxy
+    tasks_from: start-sockets.yml
+  vars:
+    proxy_socket_proxy_image: '{{ recovery_pinned_plan.image_variables.proxy_socket_proxy_image }}'
+  when: "'proxy' in recover_activate_services"
+
+- name: Start and verify each selected service in order
+  ansible.builtin.include_tasks: start-service.yml
+  loop: '{{ (recovery_activation_begin.stdout | from_json).services }}'
+  loop_control:
+    loop_var: recovery_activation_service
+
+- name: Record handoff status after readiness checks
+  ansible.builtin.command:
+    argv: [/usr/bin/python3, '{{ recovery_program_dir }}/recovery_runner.py', --config, '{{ recovery_config_dir }}/config.json', activation-finish]
+  register: recovery_handoff
+  changed_when: recovery_handoff.rc == 0
+  no_log: true
+
+- name: Show handoff status and remaining manual work
+  ansible.builtin.debug:
+    msg: '{{ recovery_handoff.stdout | from_json }}'
+
+- name: Enable replacement DDNS only after confirmed manual cutover
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: ddns.yml
+  when:
+    - recover_cutover_complete | default(false) | bool
+    - recover_enable_ddns | default(false) | bool

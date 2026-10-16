@@ -1,0 +1,23 @@
+---
+- name: Recover a replacement homelab host
+  hosts: recovery_targets
+  become: true
+  gather_facts: false
+  pre_tasks:
+    - name: Validate single recovery target
+      ansible.builtin.assert:
+        that:
+          - ansible_play_hosts_all | length == 1
+          - ansible_limit | default('') | length > 0
+        fail_msg: "Exactly one recovery target and an explicit --limit are required."
+        quiet: true
+      tags: [always]
+    - name: Validate requested recovery phase
+      ansible.builtin.assert:
+        that:
+          - recover_phase | default('plan') in ['plan', 'restore', 'verify', 'cleanup-preview', 'cleanup', 'activate']
+        fail_msg: "Unsupported recovery phase."
+        quiet: true
+      tags: [always]
+  roles:
+    - recovery

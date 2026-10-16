@@ -1,0 +1,17 @@
+---
+- name: Start/Update Docker socket proxies
+  community.docker.docker_compose_v2:
+    project_src: '{{ stack_root }}/proxy'
+    project_name: proxy
+    files:
+      - docker-compose.yml
+      - ../docker-proxy/docker-compose.yml
+    services:
+      - docker-ro
+      - docker-rw
+    dependencies: false
+    state: present
+    pull: '{{ ''always'' if pull_images | default(false) | bool else ''missing'' }}'
+    recreate: '{{ ''always'' if proxy_force_restart | bool else ''auto'' }}'
+  tags:
+    - molecule-notest

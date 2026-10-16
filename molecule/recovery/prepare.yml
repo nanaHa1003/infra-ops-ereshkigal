@@ -1,0 +1,9 @@
+---
+- name: Prepare isolated recovery fixture host
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Install real local repository dependencies
+      ansible.builtin.dnf:
+        name: [restic, python3-pyyaml, ansible-core]
+        state: present

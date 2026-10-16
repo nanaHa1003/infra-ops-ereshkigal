@@ -86,6 +86,7 @@ elif 'pg_dump ' in script:
     sys.stdout.buffer.write(b'PGDMP-test-archive')
 elif 'json_build_object' in script:
     print(json.dumps({'version': 'PostgreSQL test', 'extensions': [{'name': 'vector', 'version': 'test'}]}))
+elif 'JSON_OBJECT' in script: print(json.dumps({'version':'11.4.5','database':'wordpress','role':'wordpress','definers':['wordpress@%']}))
 elif 'information_schema' in script: print(os.environ.get('DOCKER_TEST_ENGINE', 'InnoDB'))
 elif '--list' in args:
     assert sys.stdin.buffer.read() == b'PGDMP-test-archive'
@@ -116,7 +117,9 @@ else: sys.exit(99)
 
     def test_mariadb_export_includes_schema_objects_and_transaction_flags(self):
         with self.fake_docker():
-            self.sources.prepare_sources([{"id": "wp", "kind": "mariadb", "container": "wp-db"}], self.output)
+            metadata = self.sources.prepare_sources([{"id": "wp", "kind": "mariadb", "container": "wp-db"}], self.output)
+        self.assertEqual(metadata["wp"]["database"], "wordpress")
+        self.assertEqual(metadata["wp"]["definers"], ["wordpress@%"] )
         self.assertEqual((self.output / "wp/database.sql").read_text(), "SQL fixture\n")
         calls = [json.loads(line) for line in (self.root / "docker-calls").read_text().splitlines()]
         script = next(call[-1] for call in calls if "mariadb-dump " in call[-1])

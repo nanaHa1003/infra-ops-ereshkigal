@@ -19,7 +19,18 @@ ACTIVE = ("proxy", "auth", "wordpress", "pinchflat", "immich", "mealie", "homepa
 
 
 def read_yaml(path):
-    return yaml.safe_load((ROOT / path).read_text())
+    resolved = ROOT / path
+    data = yaml.safe_load(resolved.read_text())
+    if isinstance(data, list) and "tasks" in resolved.parts:
+        expanded = []
+        for task in data:
+            include = task.get("ansible.builtin.import_tasks")
+            if include:
+                expanded.extend(read_yaml(resolved.parent / include))
+            else:
+                expanded.append(task)
+        return expanded
+    return data
 
 
 def render(value, context):
@@ -29,6 +40,22 @@ def render(value, context):
 
 
 class LifecycleContracts(unittest.TestCase):
+    def test_prepare_never_starts_containers_or_schedules_ddns(self):
+        for role in ACTIVE:
+            path = ROOT / f"roles/{role}/tasks/prepare.yml"
+            self.assertTrue(path.exists(), f"{role}: missing prepare entry")
+            tasks = yaml.safe_load(path.read_text())
+            for task in tasks:
+                self.assertNotIn("community.docker.docker_compose_v2", task)
+                self.assertNotIn("ansible.builtin.cron", task)
+                self.assertNotIn("ansible.builtin.systemd", task)
+
+    def test_normal_main_preserves_prepare_then_start_and_tags(self):
+        for role in ACTIVE:
+            tasks = yaml.safe_load((ROOT / f"roles/{role}/tasks/main.yml").read_text())
+            self.assertEqual([task.get("ansible.builtin.import_tasks") for task in tasks],
+                             ["prepare.yml", "start.yml"])
+
     def test_aria2_image_receives_the_vault_token_as_SECRET(self):
         context = read_yaml("roles/aria2/defaults/main.yml")
         context.update({"storage_root": "/mnt/storage", "timezone": "UTC",
@@ -177,9 +204,14 @@ class LifecycleContracts(unittest.TestCase):
         config = task["community.docker.docker_compose_v2"]
         self.assertEqual(render(config.get("recreate", "auto"), context), "always")
 
+    def test_caddy_start_does_not_require_a_prepare_result(self):
+        tasks=read_yaml('roles/proxy/tasks/start.yml')
+        config=next(task['community.docker.docker_compose_v2'] for task in tasks if task['name']=='Start/Update Caddy reverse proxy')
+        self.assertEqual(render(config['recreate'],{'proxy_force_restart':False}),'auto')
+
     def test_rendered_secrets_are_private_and_excluded_from_diffs(self):
         for path in (ROOT / "roles").glob("*/tasks/main.yml"):
-            for task in yaml.safe_load(path.read_text()):
+            for task in read_yaml(path):
                 template = task.get("ansible.builtin.template")
                 if not template:
                     continue
@@ -237,6 +269,19 @@ class AnsibleSelection(unittest.TestCase):
              "-e", json.dumps(variables), *args],
             env=env, cwd=self.scratch, capture_output=True, text=True, timeout=60,
         )
+
+    def test_recovery_bootstrap_rejects_conflicting_podman_without_removal(self):
+        validation = ROOT / "roles/common/tasks/validate_packages.yml"
+        self.assertTrue(validation.exists(), "missing side-effect-free package validation")
+        play = self.scratch / "conflict.yml"
+        play.write_text(yaml.safe_dump([{"hosts": "all", "gather_facts": False,
+            "vars": {"common_remove_conflicts": False,
+                     "ansible_facts": {"packages": {"podman": [{}]}}},
+            "tasks": [{"ansible.builtin.import_tasks": str(validation)}]}]))
+        result = self.run_playbook(str(play))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Conflicting container packages", result.stdout)
+        self.assertRegex(result.stdout, r"changed=0\s")
 
     def test_tagged_deploy_selects_the_service_without_other_stacks(self):
         result = self.run_playbook("site.yml", "--list-tasks", "--tags", "n8n")

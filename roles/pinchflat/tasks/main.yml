@@ -1,25 +1,6 @@
 ---
-- name: Create Pinchflat stack directory
-  ansible.builtin.file:
-    path: "{{ stack_root }}/pinchflat"
-    state: directory
-    owner: 0
-    group: 0
-    mode: '0755'
+- name: Prepare pinchflat deployment
+  ansible.builtin.import_tasks: prepare.yml
 
-- name: Deploy Pinchflat Compose
-  ansible.builtin.template:
-    src: pinchflat.yml.j2
-    dest: "{{ stack_root }}/pinchflat/docker-compose.yml"
-    mode: '0600'
-  diff: false
-  no_log: true
-  register: pinchflat_compose
-
-- name: Start/Update Pinchflat
-  community.docker.docker_compose_v2:
-    project_src: "{{ stack_root }}/pinchflat"
-    state: present
-    pull: "{{ 'always' if pull_images | default(false) | bool else 'missing' }}"
-    recreate: "{{ 'always' if pinchflat_force_restart | bool else 'auto' }}"
-  tags: [molecule-notest]
+- name: Start pinchflat deployment
+  ansible.builtin.import_tasks: start.yml

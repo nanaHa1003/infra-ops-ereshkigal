@@ -1,0 +1,68 @@
+---
+- name: Validate recovery request
+  ansible.builtin.assert:
+    that:
+      - recover_services is defined and recover_services is sequence and recover_services is not string and recover_services is not mapping
+      - recover_services | length > 0
+      - recover_source is defined and recover_source is mapping
+      - recover_repositories is defined and recover_repositories is mapping
+      - storage_root is defined and stack_root is defined
+      - recover_storage_mount is defined and recover_min_free_bytes is defined
+      - recover_phase | default('plan') == 'plan' or recover_plan_file is defined
+      - recover_phase | default('plan') not in ['cleanup', 'cleanup-preview'] or recover_run_id is defined
+    fail_msg: "Supply the recovery profile and a previously generated plan for non-plan phases."
+    quiet: true
+
+- name: Load recovery service registry
+  ansible.builtin.include_vars: services.yml
+
+- name: Validate selected recovery services
+  ansible.builtin.assert:
+    that:
+      - recover_services | difference(recovery_service_registry.keys() | list) | length == 0
+    fail_msg: "Unsupported recovery service."
+    quiet: true
+
+- name: Load public shared directory definitions without inheriting host variables
+  ansible.builtin.include_vars:
+    file: "{{ playbook_dir }}/inventory/group_vars/homelab/vars.yml"
+    name: recovery_shared_layout
+
+- name: Select replacement storage definitions
+  ansible.builtin.set_fact:
+    recovery_storage_prefixes: "{{ recover_services | map('extract', recovery_service_registry) | map(attribute='storage_prefix') | list }}"
+
+- name: Select service directory permissions
+  ansible.builtin.set_fact:
+    recovery_storage_permissions: "{{ recovery_shared_layout.storage_permissions | selectattr('path', 'match', '^(' + recovery_storage_prefixes | join('|') + ')/') | list }}"
+
+- name: Select effective recovery phase
+  ansible.builtin.set_fact:
+    recovery_effective_phase: "{{ 'plan' if ansible_check_mode else recover_phase | default('plan') }}"
+
+- name: Gather target facts
+  ansible.builtin.setup:
+    gather_subset: [min, hardware]
+
+- name: Probe target storage and existing jobs
+  ansible.builtin.command:
+    argv:
+      - "{{ ansible_python_interpreter | default('/usr/bin/python3') }}"
+      - -c
+      - "{{ lookup('ansible.builtin.file', role_path + '/files/recovery_probe.py') }}"
+    stdin: "{{ {'storage_root': storage_root, 'stack_root': stack_root, 'storage_mount': recover_storage_mount, 'services': recover_services, 'registry': recovery_service_registry} | to_json }}"
+  register: recovery_target_probe
+  changed_when: false
+  check_mode: false
+
+- name: Set target recovery facts
+  ansible.builtin.set_fact:
+    recovery_probe: "{{ recovery_target_probe.stdout | from_json }}"
+    recovery_target_architecture: "{{ {'x86_64': 'amd64', 'aarch64': 'arm64'}.get(ansible_facts.architecture, ansible_facts.architecture) }}"
+
+- name: Validate pinned plan before target changes
+  ansible.builtin.include_tasks: validate-plan.yml
+  when: recovery_effective_phase != 'plan'
+
+- name: Dispatch requested recovery phase
+  ansible.builtin.include_tasks: "{{ recovery_effective_phase }}.yml"

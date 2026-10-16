@@ -1,0 +1,27 @@
+{
+  "activation": {{ {"services": recover_activate_services | default([]), "old_host_fenced": recover_old_host_fenced | default(false) | bool, "fencing_reference": recover_fencing_reference | default(""), "cutover_complete": recover_cutover_complete | default(false) | bool, "enable_ddns": recover_enable_ddns | default(false) | bool, "accepted_limitations": recover_accept_limited | default({}), "media_evidence": recover_media_evidence | default({})} | to_json }},
+  "source": {{ recover_source | to_json }},
+  "repository": {{ recover_repositories[recover_source.repository] | combine(vault_secrets.backup.repositories[recover_source.repository]) | to_json }},
+  "services": {{ recover_services | to_json }},
+  "state_root": {{ recover_state_root | default(recovery_default_state_root) | to_json }},
+  "plan_file": {{ ((recovery_config_dir + "/plan.json") if recovery_remote_config | default(false) else recover_plan_file | default(none)) | to_json }},
+  "domain": {{ domain | to_json }},
+  "vault_revision": {{ recover_vault_revision | default(none) | to_json }},
+  "legacy_profile": {{ recover_legacy_profile | default({}) | to_json }},
+  "registry": {{ recovery_service_registry | to_json }},
+  "secrets": {{ vault_secrets | to_json }},
+  "target": {
+    "host": {{ inventory_hostname | to_json }},
+    "machine_id": {{ recovery_probe.machine_id | to_json }},
+    "distribution": {{ ansible_facts.distribution | to_json }},
+    "release": {{ ansible_facts.distribution_major_version | to_json }},
+    "architecture": {{ recovery_target_architecture | to_json }},
+    "storage_root": {{ storage_root | to_json }},
+    "stack_root": {{ stack_root | to_json }},
+    "storage_mount": {{ recover_storage_mount | to_json }},
+    "database_options": {{ recover_database_options | default({}) | to_json }},
+    "permissions": {{ recovery_storage_permissions | to_json }},
+    "min_free_bytes": {{ recover_min_free_bytes | int | to_json }},
+    "probe": {{ recovery_probe | to_json }}
+  }
+}

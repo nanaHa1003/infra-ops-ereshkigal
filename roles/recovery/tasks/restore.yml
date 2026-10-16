@@ -1,0 +1,31 @@
+---
+- name: Install recovery tooling
+  ansible.builtin.import_tasks: install.yml
+
+- name: Download and validate pinned recovery snapshot
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/python3
+      - "{{ recovery_program_dir }}/recovery_runner.py"
+      - --config
+      - "{{ recovery_config_dir }}/config.json"
+      - download
+  register: recovery_download_result
+  changed_when: recovery_download_result.rc == 0
+  no_log: true
+
+- name: Prepare pinned service definitions without starting them
+  ansible.builtin.include_tasks: prepare.yml
+  when: (recovery_download_result.stdout | from_json).phase == "downloaded"
+
+- name: Restore selected service data
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/python3
+      - "{{ recovery_program_dir }}/recovery_runner.py"
+      - --config
+      - "{{ recovery_config_dir }}/config.json"
+      - restore
+  register: recovery_restore_result
+  changed_when: recovery_restore_result.rc == 0
+  no_log: true
