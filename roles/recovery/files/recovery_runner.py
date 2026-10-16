@@ -48,13 +48,14 @@ def preflight_issues(config):
     target = config["target"]
     probe = target.get("probe", {})
     issues = []
-    if (target.get("distribution"), str(target.get("release")), target.get("architecture")) != ("Fedora", "43", "amd64"):
-        issues.append({"code": "unsupported_target_platform"})
+    for capability in ("linux", "docker", "compose_v2", "restic", "pyyaml", "selinux_tools"):
+        if not probe.get("capabilities", {}).get(capability):
+            issues.append({"code": "target_capability_missing:" + capability})
     if not probe.get("mount_ok"):
         issues.append({"code": "storage_mount_missing"})
     if probe.get("free_bytes", 0) < target.get("min_free_bytes", 0) or target.get("min_free_bytes", 0) <= 0:
         issues.append({"code": "insufficient_free_space"})
-    for field, code in (("package_conflicts", "conflicting_container_packages"), ("nonempty_roots", "nonempty_service_destinations"),
+    for field, code in (("nonempty_roots", "nonempty_service_destinations"),
                         ("conflicting_services", "existing_production_containers"), ("active_backup_timers", "backup_timers_already_active"),
                         ("ddns_active", "ddns_already_active")):
         if probe.get(field): issues.append({"code": code})
@@ -65,6 +66,13 @@ def preflight_issues(config):
     if not shutil.which("restic"):
         issues.append({"code": "source_tool_unavailable"})
     return issues
+
+
+def validate_runtime_target(target):
+    actual_id = Path("/etc/machine-id").read_text().strip()
+    architecture = {"x86_64": "amd64", "aarch64": "arm64"}.get(platform.machine(), platform.machine())
+    if platform.system() != "Linux" or actual_id != target["machine_id"] or architecture != target["architecture"]:
+        raise BackupError("runtime target identity or architecture does not match the recovery plan")
 
 
 def _absolute(value):
@@ -357,10 +365,7 @@ def main(argv=None):
         os.environ["DOCKER_HOST"] = "unix:///var/run/docker.sock"
         for key in ("DOCKER_CONTEXT", "DOCKER_TLS_VERIFY", "DOCKER_CERT_PATH"):
             os.environ.pop(key, None)
-        actual_id = Path("/etc/machine-id").read_text().strip()
-        operating_system = platform.freedesktop_os_release()
-        if actual_id != plan["target"]["machine_id"] or operating_system.get("ID") != "fedora" or operating_system.get("VERSION_ID") != "43" or platform.machine() != "x86_64":
-            raise BackupError("runtime target identity or platform does not match the recovery plan")
+        validate_runtime_target(plan["target"])
         with runtime_lock():
             if args.operation == "download":
                 state = download(config, plan)

@@ -1,4 +1,6 @@
 ---
+# Prepare Linux Docker Engine + Compose v2, Restic, Python3/PyYAML first.
+# Recovery does not bootstrap a distribution or install/remove host packages.
 recover_phase: plan
 recover_source:
   repository: database

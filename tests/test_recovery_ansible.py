@@ -81,6 +81,27 @@ class RecoveryAnsible(unittest.TestCase):
             self.assertTrue(path.exists(),str(path))
             self.assertTrue(all('@sha256:' in value['image'] for value in yaml.safe_load(path.read_text())['services'].values()))
 
+    def test_host_integration_skips_selinux_and_does_not_bootstrap_distribution(self):
+        install = yaml.safe_load((ROOT/'roles/recovery/tasks/install.yml').read_text())
+        prepare = yaml.safe_load((ROOT/'roles/recovery/tasks/prepare.yml').read_text())
+        # Execute the public host guard and actual SELinux tasks on a non-SELinux
+        # target; no sudo, package installation, Docker or root chown is needed.
+        tasks = [install[0]] + [task for task in prepare if task['name'] in ('Label replacement service storage', 'Apply replacement SELinux labels')]
+        play = self.scratch/'portable.yml'
+        capabilities = dict.fromkeys(('linux', 'docker', 'compose_v2', 'restic', 'pyyaml', 'selinux_tools'), True)
+        play.write_text(yaml.safe_dump([{'hosts': 'one', 'gather_facts': False, 'vars': {
+            'ansible_facts': {'distribution': 'Ubuntu', 'distribution_major_version': '24', 'selinux': {'status': 'disabled'}},
+            'recovery_probe': {'capabilities': capabilities, 'mount_ok': True, 'service_probe_failed': False,
+                'active_backup_timers': False, 'ddns_active': False, 'free_bytes': 1000},
+            'recover_min_free_bytes': 100, 'storage_root': str(self.scratch/'must-not-create')}, 'tasks': tasks}], sort_keys=False))
+        executable = shutil.which('ansible-playbook') or str(Path(sys.executable).parent/'ansible-playbook')
+        result = subprocess.run([executable, str(play), '-i', str(self.inventory)], cwd=self.scratch,
+            env={**os.environ, 'ANSIBLE_CONFIG': str(self.config), 'ANSIBLE_NOCOLOR': '1'}, capture_output=True, text=True, timeout=60)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('skipped=2', result.stdout)
+        self.assertFalse((self.scratch/'must-not-create').exists())
+        self.assertFalse(any('ansible.builtin.package' in task or 'ansible.builtin.include_role' in task for task in install))
+
     def test_invalid_phase_is_rejected_before_bootstrap(self):
         result = self.run_play("--check", "--limit", "one", "-e", "recover_phase=unsafe")
         self.assertNotEqual(result.returncode, 0)

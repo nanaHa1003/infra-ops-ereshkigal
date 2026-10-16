@@ -44,11 +44,6 @@
   ansible.builtin.setup:
     gather_subset: [min, hardware]
 
-- name: Gather container package conflicts
-  ansible.builtin.package_facts:
-    manager: auto
-  when: ansible_facts.distribution == 'Fedora'
-
 - name: Probe target storage and existing jobs
   ansible.builtin.command:
     argv:

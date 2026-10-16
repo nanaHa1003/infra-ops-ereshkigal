@@ -357,4 +357,4 @@ MIT — Created and maintained by nanaha1003.
 
 ## 替代主機復原
 
-獨立入口 `recover.yml` 支援固定 Restic 快照的 plan → restore → verify → 明確 activate；不從 `site.yml` 自動執行。使用歷史 Vault 與 image digests，還原到新機獨立儲存路徑，應用啟動前要求舊機 fencing。見 [復原操作與驗收限制](docs/recovery.md)。照片／媒體與 Fedora43 x86_64 SELinux VM 演練尚待另外驗收。
+獨立入口 `recover.yml` 支援固定 Restic 快照的 plan → restore → verify → 明確 activate；不從 `site.yml` 自動執行。使用歷史 Vault 與 image digests，還原到新機獨立儲存路徑，應用啟動前要求舊機 fencing。見 [復原操作與驗收限制](docs/recovery.md)。復原依 Linux／Docker／Compose／儲存能力檢查，不限定發行版；主機 provisioning 獨立處理。本次以 Container 測試驗收，照片／媒體另行處理。

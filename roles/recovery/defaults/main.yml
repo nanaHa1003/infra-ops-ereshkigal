@@ -2,4 +2,3 @@
 recovery_default_state_root: /var/lib/homelab-recovery
 recovery_program_dir: /usr/local/libexec/homelab-recovery
 recovery_config_dir: /etc/homelab-recovery
-recovery_supported_releases: ['43']

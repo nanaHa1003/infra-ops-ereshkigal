@@ -1,6 +1,6 @@
 # 實作裁定與驗收界線
 
-以下依執行 ledger 的裁定順序，保留本次代為決定的事項及其代價。正式操作以 [recovery.md](recovery.md) 為準；完整 Fedora43 x86_64／SELinux VM 驗收仍未完成。
+以下依執行 ledger 的裁定順序，保留本次代為決定的事項及其代價。正式操作以 [recovery.md](recovery.md) 為準；本次依2026-10-16使用者指示以 Container 驗收為準；以下先前要求 VM 的裁定，由文件末尾的範圍修訂取代。
 
 | 次序 | 裁定 | 若假設不成立的代價 |
 |---|---|---|
@@ -39,3 +39,11 @@
 本次獨立審查沒有列出延期的小問題。四項需修正的具體問題是 prepare 誤接 start、跨 run 的空目錄認領、FPM HTTP probe、續跑跳過 Vault 比對；修正各有 RED→GREEN 測試，最終結果見操作手冊的驗證紀錄。
 
 後續修正補充：目錄認領改為固定主機層的持久 index，不能因空目錄、不同 state_root 或中斷而重複認領；index 遺失或損壞時會拒絕續跑，必須先人工查明，不自動接管既有資料。Native worktree 與本計畫 ledger 保留至 VM 驗收，尚未執行整合／推送決策；代價是保留少量本機工作檔，避免下一輪遺失待驗收事項。
+
+## 2026-10-16 驗收範圍修訂
+
+使用者確認「以 Container 驗收即可」。本次以已通過的真實 DB/n8n matrix、三組 Molecule 與回歸測試驗收；不再要求 VM 作為完成／整合前提。前述 VM 待辦保留為歷史決策，主機安裝、SELinux enforcing、實體掛載、整機重開機與完整應用登入/OIDC 尚無測試證據，不宣稱已涵蓋。未執行推送、合併或正式部署。
+
+## 2026-10-16 主機可攜性修訂
+
+使用者指出容器復原不應綁定 Fedora。移除 Fedora43/amd64 主機白名單與復原中的 common/bootstrap、套件安裝；改由實際 Linux Docker daemon、Compose v2、Restic、PyYAML、儲存／權限能力判斷。SELinux 與 systemd 按存在／啟用狀態處理。先前 OS/ARM 白名單裁定由本節取代；不表示任意平台已測試，跨架構 image 替代另案。復原主機需先準備容器工具，這是將 provisioning 與資料復原分離的明確介面。

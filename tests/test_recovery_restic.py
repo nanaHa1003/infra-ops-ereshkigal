@@ -44,7 +44,7 @@ class RecoveryRestic(unittest.TestCase):
                     "registry": {"homepage": {"sources": {"config": {"kind": "files", "layout": "directory", "target": "homepage/config"}}}},
                     "target": {"host": "replacement", "machine_id": "new-machine", "distribution": "Fedora", "release": "43", "architecture": "amd64",
                         "storage_root": "/srv/replacement", "stack_root": "/opt/recovered", "storage_mount": "/srv", "min_free_bytes": 1,
-                        "probe": {"mount_ok": True, "free_bytes": 10000}}}
+                        "probe": {"mount_ok": True, "free_bytes": 10000, "capabilities": {"linux": True, "docker": True, "compose_v2": True, "restic": True, "pyyaml": True, "selinux_tools": True}}}}
                 result = runner.create_plan(config)
                 self.assertEqual(result["blockers"], [])
                 self.assertEqual(result["snapshot_id"], expected)

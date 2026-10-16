@@ -6,9 +6,11 @@
 
 **Architecture:** Ansible 負責目標主機預檢、bootstrap、共用 role 的 prepare/start 及接管順序；小型 Python 模組負責來源快照篩選、manifest、檔案映射、匯入、驗證及 run state。既有備份 CLI 保持相容，來源 hostname/path 與目的地設定完全分離。資料層驗證不啟動正式應用或對外排程。
 
+**2026-10-16主機介面修訂：** 依能力檢查 Linux/Docker/Compose/Restic/Python，不限制發行版；不由 recovery 安裝系統套件。SELinux/systemd 條件化，WSL2 不因名稱被拒絕。以下 Fedora bootstrap 步驟為歷史計畫，由本修訂取代。
+
 **Tech Stack:** Ansible、community.docker、Python standard library、PyYAML（僅 legacy Compose parser）、restic、Docker Compose v2、Fedora 43 x86_64／systemd／SELinux enforcing VM。資料庫矩陣為 PG16、PG18、Immich PG14 extensions、MariaDB、SQLite。
 
-**Spec:** `docs/superpowers/specs/2026-10-15-cross-host-recovery-design.md`（使用者已確認）。使用者選擇 Native 執行；實作與隔離測試已進行，Fedora43 x86_64 VM 驗收仍待外部測試環境。
+**Spec:** `docs/superpowers/specs/2026-10-15-cross-host-recovery-design.md`（使用者已確認）。使用者選擇 Native 執行；實作與隔離測試已進行，2026-10-16使用者修訂為以 Container 驗收，VM 不再是完成條件。
 
 ## Global Constraints
 
@@ -177,7 +179,7 @@
 - [x] **1. Write failing end-to-end fixture**：source-host＋target-host 使用不同 names、帳號與 storage paths，來源備份含假 Authentik/n8n/Immich/WP/SQLite/config資料、假網域與假外部 endpoint。匯出後停止並移除來源 containers／原資料存取，剩 local restic repo＋fake Vault，完成 plan→restore→verify。assert legacy v1 與 v2 各一輪。
 - [x] **2. Run RED**：`molecule test -s recovery` 及 DB integration 矩陣；首次失敗原因必須是未完成的復原行為，不能是預期依賴缺失。
 - [x] **3. Complete scenario and CI**：所有網路／ports/socket restrictions 檢查實際 Docker inspect 的選定非秘密欄位；假 SMTP/webhook/DNS server 的計數保持零。測試 restore 中斷、missing mount、低空間、profile mismatch、cleanup ownership、activate失敗。既有 CI dummy Vault步驟只在 disposable checkout執行；不輸出真實 Vault／原始 dump。
-- [ ] **4. （待空白測試 VM）Run Fedora 43 x86_64 VM rehearsal**：外部準備空白 VM及專用已掛載測試磁碟，enforcing 必須是實測值；完成不同目標路徑/UID與重啟後的 restore/verify/fixture activate。證明沒有來源 SSH、正式磁碟、production DNS或 B2寫入。無可用VM時明確標記 blocked acceptance，不自行使用正式機充當測試VM。
+- [x] **4. （2026-10-16範圍修訂：以 Container 驗收取代，未執行 VM）**：使用者已確認以通過的 Container matrix／Molecule 驗收。以下原 VM 步驟不再是本次要求，僅保留歷史規劃：外部準備空白 VM及專用已掛載測試磁碟，enforcing 必須是實測值；完成不同目標路徑/UID與重啟後的 restore/verify/fixture activate。證明沒有來源 SSH、正式磁碟、production DNS或 B2寫入。無可用VM時明確標記 blocked acceptance，不自行使用正式機充當測試VM。
 - [x] **5. Run final checks**：全套 unittest、明確開啟且無 skip 的 recovery DB integration、production lint、site/down/backup/recover syntax、`molecule test`、`molecule test -s backup`、`molecule test -s recovery`、gitleaks、`git diff --check`。執行於測試 checkout；保留既有真實 B2／服務不受影響。
 - [x] **6. Write complete runbook and results**：提供 plan/profile/Vault 選取、兩次主要sudo操作、版本缺口、媒體限制、清理、最後快照、人工切換與回退界線。記錄下載/匯入/驗證耗時、磁碟高峰及尚未驗收項；只有量測後才提出 RTO。預期操作使用完整 `ansible-playbook recover.yml -i ... --limit ...`，範例秘密不放argv。
 - [x] **7. Commit**：`test: exercise replacement-host recovery and document handoff`；依 verification-before-completion 技能取得新證據後才宣稱完成，推送／正式部署依使用者授權範圍執行。

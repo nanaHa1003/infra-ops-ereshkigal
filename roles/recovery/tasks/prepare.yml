@@ -26,6 +26,7 @@
     target: '{{ storage_root }}(/.*)?'
     setype: container_file_t
     state: present
+  when: ansible_facts.selinux.status | default('disabled') == 'enabled'
 - name: Prepare shared networks without starting proxies
   ansible.builtin.include_role:
     name: proxy
@@ -109,3 +110,4 @@
       - -R
       - '{{ storage_root }}'
   changed_when: false
+  when: ansible_facts.selinux.status | default('disabled') == 'enabled'

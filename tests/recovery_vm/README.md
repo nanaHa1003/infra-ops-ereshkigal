@@ -1,4 +1,4 @@
-# Fedora43 x86_64 acceptance — pending external test VM
+# Optional host rehearsal — not required for container acceptance
 
 This is a manual acceptance gate, not an executed result. Never substitute the
 production host or claim that the Fedora40 Molecule container proves SELinux.
@@ -34,5 +34,6 @@ must use only synthetic Vault fields and `.example` domains.
    reboot observations, and redacted assertions in a dated acceptance report.
    Do not record dumps, passwords, decrypted credentials or raw inspect Env.
 
-Until this passes, recovery is development-tested only; there is no verified
-production RTO. The media backup/restore procedure is outside this acceptance.
+The user accepted container-based verification on 2026-10-16. This optional
+host rehearsal is not a completion requirement and has not been executed.
+There is no measured production RTO. Media backup/restore is out of scope.

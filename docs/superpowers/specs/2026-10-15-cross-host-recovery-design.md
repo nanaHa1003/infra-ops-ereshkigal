@@ -1,12 +1,12 @@
 # 替代主機資料庫與設定復原設計
 
-狀態：使用者已確認設計，進入實作計畫撰寫；尚未實作、部署或執行復原。基準版本為 `59023b4`。
+狀態：已實作並完成 Container 測試；2026-10-16修訂驗收與主機可攜性介面。尚未部署到正式主機。原始設計基準版本為 `59023b4`。
 
 ## 1. 目標與成功條件
 
 目前主機即使完全無法存取，操作者仍能從獨立保存的 Git repo、加密 Vault、Vault 解鎖方式、B2 憑證與 restic 密碼，在另一台主機復原已備份的資料庫及設定。新機的 SSH 名稱、IP、登入帳號、stack_root、storage_root 可以與舊機不同。
 
-第一版以 Fedora、systemd、Docker Compose v2、SELinux enforcing 為實測範圍，先驗證 x86_64。其他發行版透過 bootstrap task 擴充；ARM64 必須另驗證所有映像與擴充套件，不宣稱第一版已支援。OS 版本須在實作的 CI／VM 測試矩陣中明列，未測版本在 preflight 報告為不支援。
+2026-10-16依使用者修訂：復原以 Linux／Docker Engine／Compose v2／Restic／Python3/PyYAML 與儲存／權限能力為介面，不限定 Fedora 或 OS 版本；主機 provisioning 獨立處理。SELinux 啟用時才標記，systemd 運作時才查 timer，WSL2 不因發行版或無 systemd 被拒絕。執行仍綁定 machine-id 與目標架構，來源 image 須匹配目標架構；跨架構的同版本替代 image 對應另案。未測平台明列為測試界線，不只因未列入矩陣就拒絕。Container 測試為本次驗收，VM 不再是完成條件。
 
 成功分成三層，報告不得混稱：
 
@@ -26,7 +26,7 @@
 | 快照選取綁定 config.host、job tag、舊 staging path | 新機不能用自己的 hostname／state_root 篩選舊機快照 |
 | `manifest.json` 沒有 schema version；PG 有版本／角色／extensions／image，其他來源資訊有限 | 定義 version 2，並提供明確的 legacy adapter |
 | 備份有 rendered Compose，但部分 image 為 mutable tags | 不直接執行快照 Compose；補記 resolved image digest 與部署版本 |
-| `common/tasks/main.yml` 同時處理 Docker、儲存目錄及 DDNS cron | 拆成可選 task 檔，復原只呼叫 bootstrap/storage |
+| `common/tasks/main.yml` 同時處理 Docker、儲存目錄及 DDNS cron | 拆成可選 task 檔，復原只重用服務準備介面，不呼叫發行版 bootstrap |
 | 各服務 role 同時 render 與 start，Mealie 還會複製 repo prompts | 拆開 prepare/start；先準備基礎檔，再覆蓋快照設定 |
 | proxy role 同時建立網路並啟動 Caddy/socket proxies | 復原時只準備正式網路與檔案；驗證不啟動公開入口或 Docker socket proxies |
 | PostgreSQL／MariaDB 原始 volume 沒有備份 | 初始化全新資料庫後匯入邏輯 dump，不能把 dump 複製成 data directory |
@@ -100,7 +100,7 @@ recover.yml --limit replacement -e @recovery-profile.yml -e recover_phase=activa
 ### plan：可審閱的預檢
 
 - 檢查目標 SSH identity、OS／架構、Docker／restic 是否存在、儲存 mount 與空間、各目的地是否空白、是否有同名或衝突容器。
-- 未安裝的依賴列為 restore 的 bootstrap 工作；plan 不安裝套件、不建立資料庫、不修改來源 repository 或 DNS。
+- 未安裝的依賴列為主機 provisioning 工作，必須在復原前準備；plan 不安裝套件、不建立資料庫、不修改來源 repository 或 DNS。
 - 若目標缺 restic，來源快照預覽由控制端有 restic 的檢查環境執行；沒有可用工具則明確報告來源預檢未完成，不能假裝已驗證。
 - 以 repository＋source host＋completed job tag＋舊 staging path 選取快照；排除 pending。`latest` 只解析一次，之後所有階段固定同一完整 snapshot ID。
 - `restic ls` 確認實際 tree layout，定位唯一 manifest，不假設 snapshot.paths 等於 tree 內路徑，不用無限制 `rglob` 選第一個結果。
@@ -109,7 +109,7 @@ recover.yml --limit replacement -e @recovery-profile.yml -e recover_phase=activa
 
 ### restore：資料與設定復原
 
-1. 在空白目標執行 Fedora bootstrap，安裝 Docker／Compose／Python／restic 並準備 SELinux；不部署 DDNS cron，不啟用備份 timer。若既有 Podman／其他套件與 Docker 衝突，預檢列出並停止，不直接沿用 common 中無條件移除套件的行為；套件移除另由操作者處理。
+1. 檢查目標已具備 Linux Docker／Compose／Python／restic 與可用儲存；安裝 root-only 復原腳本，不安裝或移除系統套件。SELinux 啟用時檢查必要工具並準備標籤，不部署 DDNS cron 或備份 timer。
 2. 建立 root `0700` recovery run directory 與 `0600` config/state。取得主機級互斥鎖，記錄目標 identity、快照 ID、profile hash 與所選服務。
 3. 下載快照到該 run 的 scratch，執行 restic content verification；來源只做快照讀取，允許 restic 所需 lock，不執行 init/tag/forget/prune。
 4. 驗證 manifest、必要檔案與 digest、版本／架構、目的地映射、Vault 相容性及容量。全數通過後才寫入正式服務資料目錄。
@@ -235,7 +235,7 @@ restore／verify 失敗：保持應用、DDNS、備份 timer 關閉；保留 roo
 - 單元：不同 source/target host、job/tag/path 篩選、snapshot 前綴歧義與 pending 拒絕；固定 ID 不受新備份影響；legacy/v2 manifest、unknown versions、缺檔／錯 hash；symlink／traversal／目的地重疊；Vault mismatch；已有非空 DB；不當重跑與中斷 state。
 - 真實本機 restic：建立含另一主機／另一 job／pending 的 repository，移走來源資料後只依快照復原，選對內容與樹狀路徑，拒絕錯快照。
 - 真實資料庫整合：用假資料 fixture 匯出後重建 PG16／PG18／Immich extension PG14／MariaDB／SQLite；測 FK／extensions／roles／grants／DEFINER，不只 pg_restore --list。n8n 正確 key 成功、錯 key 失敗且不洩漏明文。
-- Fedora VM／SELinux：新 storage mount 與不同路徑、正確標籤／UID/GID、斷電／重新執行、磁碟不足與依賴缺失。Molecule 容器測試不能替代 SELinux enforcing VM 驗收。
+- Fedora VM／SELinux：新 storage mount 與不同路徑、正確標籤／UID/GID、斷電／重新執行、磁碟不足與依賴缺失。本次以 Container 驗收；SELinux enforcing VM 演練可另行執行，不是完成前提。
 - 阻斷副作用：驗證期沒有公開 port、host networking、Docker socket proxy、DDNS cron、Healthchecks success ping 或 backup timer；嘗試連到假 SMTP／webhook／DNS endpoint，不得成功。DB 網路之外沒有正式應用背景程序。
 - 既有全部測試、production lint、site/down/backup/recover syntax、Compose config、gitleaks；拆分 role 後重跑既有 Molecule。復原匯入不以 changed=0 當成唯一正確性標準。
 

@@ -1,29 +1,15 @@
 ---
-- name: Require a supported replacement host
+- name: Require a capable replacement host
   ansible.builtin.assert:
     that:
-      - ansible_facts.distribution == 'Fedora'
-      - ansible_facts.distribution_major_version in recovery_supported_releases
-      - recovery_target_architecture == 'amd64'
+      - recovery_probe.capabilities.values() | select('equalto', false) | list | length == 0
       - recovery_probe.mount_ok | bool
       - not recovery_probe.service_probe_failed | bool
       - not recovery_probe.active_backup_timers | bool
       - not recovery_probe.ddns_active | bool
       - recovery_probe.free_bytes | int >= recover_min_free_bytes | int
-    fail_msg: "Unsupported target or storage preflight failed."
+    fail_msg: "Prepare Docker Engine, Compose v2, Restic, Python/PyYAML and storage before recovery. Inspect the plan for failed capabilities."
     quiet: true
-
-- name: Bootstrap replacement Docker host without removing packages
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: bootstrap.yml
-  vars:
-    common_remove_conflicts: false
-
-- name: Install recovery dependencies
-  ansible.builtin.package:
-    name: [restic, python3, python3-pyyaml, policycoreutils-python-utils, python3-libselinux]
-    state: present
 
 - name: Create protected recovery program and configuration directories
   ansible.builtin.file:

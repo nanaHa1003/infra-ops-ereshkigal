@@ -16,17 +16,35 @@ class RecoveryPreflight(unittest.TestCase):
         self.assertTrue((ROOT / "roles/recovery/files/recovery_runner.py").exists(), "missing recovery preflight")
         self.module = importlib.import_module("recovery_runner")
         self.config = {"target": {"distribution": "Fedora", "release": "43", "architecture": "amd64", "machine_id": "target-one", "min_free_bytes": 100,
-            "probe": {"mount_ok": True, "free_bytes": 1000, "package_conflicts": [], "nonempty_roots": [], "conflicting_services": [], "active_backup_timers": False, "ddns_active": False, "restic": False}}}
+            "probe": {"mount_ok": True, "free_bytes": 1000, "package_conflicts": [], "nonempty_roots": [], "conflicting_services": [], "active_backup_timers": False, "ddns_active": False, "restic": False, "capabilities": {"linux": True, "docker": True, "compose_v2": True, "restic": True, "pyyaml": True, "selinux_tools": True}}}}
 
-    def test_missing_mount_low_space_architecture_and_podman_block(self):
-        for key, value, code in (("mount_ok", False, "storage_mount_missing"), ("free_bytes", 1, "insufficient_free_space"),
-                                  ("package_conflicts", ["podman"], "conflicting_container_packages")):
-            with self.subTest(key=key):
-                config = {"target": {**self.config["target"], "probe": {**self.config["target"]["probe"], key: value}}}
-                issues = self.module.preflight_issues(config)
-                self.assertIn(code, [item["code"] for item in issues])
-        self.config["target"]["architecture"] = "arm64"
-        self.assertIn("unsupported_target_platform", [row["code"] for row in self.module.preflight_issues(self.config)])
+    def test_missing_mount_and_low_space_block(self):
+        for key, value, code in (("mount_ok", False, "storage_mount_missing"), ("free_bytes", 1, "insufficient_free_space")):
+            config = {"target": {**self.config["target"], "probe": {**self.config["target"]["probe"], key: value}}}
+            self.assertIn(code, [item["code"] for item in self.module.preflight_issues(config)])
+
+    def test_distro_release_and_coinstalled_podman_do_not_block_capable_host(self):
+        with patch.object(self.module.shutil, "which", return_value="/fixture/restic"):
+            for distro, release, arch in (("Ubuntu", "24", "amd64"), ("Debian", "13", "arm64"), ("Fedora", "44", "amd64")):
+                self.config["target"].update(distribution=distro, release=release, architecture=arch)
+                self.config["target"]["probe"]["package_conflicts"] = ["podman"]
+                self.assertEqual(self.module.preflight_issues(self.config), [])
+
+    def test_missing_actual_capability_blocks_independent_of_distribution(self):
+        for capability in ("linux", "docker", "compose_v2", "restic", "pyyaml", "selinux_tools"):
+            with self.subTest(capability=capability):
+                self.config["target"]["probe"]["capabilities"][capability] = False
+                self.assertIn("target_capability_missing:" + capability, [row["code"] for row in self.module.preflight_issues(self.config)])
+                self.config["target"]["probe"]["capabilities"][capability] = True
+
+    def test_runtime_accepts_matching_linux_arm_and_rejects_other_machine_or_arch(self):
+        target = {"machine_id": "target-one", "architecture": "arm64"}
+        with patch.object(self.module.Path, "read_text", return_value="target-one\n"), patch.object(self.module.platform, "system", return_value="Linux"), patch.object(self.module.platform, "machine", return_value="aarch64"):
+            self.module.validate_runtime_target(target)
+            with self.assertRaises(self.module.BackupError):
+                self.module.validate_runtime_target({**target, "machine_id": "other"})
+            with self.assertRaises(self.module.BackupError):
+                self.module.validate_runtime_target({**target, "architecture": "amd64"})
 
     def test_plan_without_remote_restic_uses_controller_or_reports_incomplete(self):
         with patch.object(self.module.shutil, "which", return_value="/fixture/restic"):

@@ -1,5 +1,7 @@
 """Read-only target facts. Executed before any recovery program installation."""
 import json
+import importlib.util
+import platform
 from pathlib import Path, PurePosixPath
 import shutil
 import subprocess
@@ -40,13 +42,26 @@ containers = []
 if shutil.which("docker"):
     for service in config["services"]:
         containers.extend(selected_output(["docker", "--host", "unix:///var/run/docker.sock", "ps", "-aq", "--filter", "label=com.docker.compose.project=" + service]).split())
-timers = selected_output(["systemctl", "list-units", "--type=timer", "--state=active", "--no-legend", "--plain", "homelab-backup*"])
-cron = Path("/var/spool/cron/root")
-cron_text = cron.read_text() if cron.exists() else ""
+# An absent service manager has no running systemd timers. A running manager
+# whose state cannot be read remains an error; never assume its timers are empty.
+timers = ""
+if Path("/run/systemd/system").exists():
+    timers = selected_output(["systemctl", "list-units", "--type=timer", "--state=active", "--no-legend", "--plain", "homelab-backup*"])
+cron_paths = [Path("/var/spool/cron/root"), Path("/var/spool/cron/crontabs/root"), Path("/etc/crontab")]
+if Path("/etc/cron.d").is_dir(): cron_paths += list(Path("/etc/cron.d").iterdir())
+cron_text = "\n".join(path.read_text() for path in cron_paths if path.is_file())
+engine = selected_output(["docker", "--host", "unix:///var/run/docker.sock", "info", "--format", "{{.OSType}}"]).strip() if shutil.which("docker") else ""
+compose = selected_output(["docker", "compose", "version", "--short"]).strip().lstrip("v") if shutil.which("docker") else ""
+restic_version = selected_output(["restic", "version"]) if shutil.which("restic") else ""
+selinux_enabled = Path("/sys/fs/selinux/enforce").exists()
+capabilities = {"linux": platform.system() == "Linux", "docker": engine == "linux",
+    "compose_v2": compose.split(".")[0] == "2", "restic": bool(restic_version.strip()),
+    "pyyaml": importlib.util.find_spec("yaml") is not None,
+    "selinux_tools": not selinux_enabled or (all(shutil.which(name) for name in ("semanage", "restorecon")) and importlib.util.find_spec("selinux") is not None)}
 machine = Path("/etc/machine-id")
 print(json.dumps({"mount_ok": mount.is_mount() and not symlinks,
     "free_bytes": shutil.disk_usage(mount).free if mount.exists() else 0,
     "machine_id": machine.read_text().strip() if machine.exists() else None,
     "nonempty_roots": sorted(set(nonempty + symlinks)), "conflicting_services": containers,
     "active_backup_timers": bool(timers.strip()), "ddns_active": "ddupdate.sh" in cron_text,
-    "service_probe_failed": service_probe_failed, "restic": bool(shutil.which("restic")), "docker": bool(shutil.which("docker"))}))
+    "capabilities": capabilities, "service_probe_failed": service_probe_failed, "restic": bool(shutil.which("restic")), "docker": bool(shutil.which("docker"))}))
