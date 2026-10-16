@@ -48,8 +48,18 @@ timers = ""
 if Path("/run/systemd/system").exists():
     timers = selected_output(["systemctl", "list-units", "--type=timer", "--state=active", "--no-legend", "--plain", "homelab-backup*"])
 cron_paths = [Path("/var/spool/cron/root"), Path("/var/spool/cron/crontabs/root"), Path("/etc/crontab")]
-if Path("/etc/cron.d").is_dir(): cron_paths += list(Path("/etc/cron.d").iterdir())
-cron_text = "\n".join(path.read_text() for path in cron_paths if path.is_file())
+try:
+    if Path("/etc/cron.d").is_dir(): cron_paths += list(Path("/etc/cron.d").iterdir())
+except OSError:
+    service_probe_failed = True
+cron_parts = []
+for path in cron_paths:
+    try:
+        if path.is_file(): cron_parts.append(path.read_text())
+    except OSError:
+        # Non-root plan/check must report unknown state, never assume no jobs.
+        service_probe_failed = True
+cron_text = "\n".join(cron_parts)
 engine = selected_output(["docker", "--host", "unix:///var/run/docker.sock", "info", "--format", "{{.OSType}}"]).strip() if shutil.which("docker") else ""
 compose = selected_output(["docker", "compose", "version", "--short"]).strip().lstrip("v") if shutil.which("docker") else ""
 restic_version = selected_output(["restic", "version"]) if shutil.which("restic") else ""

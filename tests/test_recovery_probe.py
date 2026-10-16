@@ -48,4 +48,27 @@ class RecoveryProbe(unittest.TestCase):
             self.assertTrue(result['capabilities']['selinux_tools'])
             self.assertFalse(any(call[0] == 'systemctl' for call in calls))
 
+    def test_unreadable_cron_state_returns_unknown_instead_of_crashing(self):
+        denied = '/var/spool/cron/crontabs/root'
+        original_read = Path.read_text
+        for failure in ('stat', 'read', 'list'):
+            with self.subTest(failure=failure), tempfile.TemporaryDirectory() as directory:
+                config = {'storage_root': directory, 'stack_root': directory + '/stacks', 'storage_mount': '/', 'services': [], 'registry': {}}
+                def is_file(path):
+                    if str(path) == denied:
+                        if failure == 'stat': raise PermissionError('restricted root crontab')
+                        return failure == 'read'
+                    return False
+                def read(path, *args, **kwargs):
+                    if str(path) == denied: raise PermissionError('restricted root crontab')
+                    return original_read(path, *args, **kwargs)
+                def listing(path):
+                    raise PermissionError('restricted cron directory')
+                output = io.StringIO()
+                with patch('sys.stdin', io.StringIO(json.dumps(config))), contextlib.redirect_stdout(output), patch('shutil.which', return_value=None), patch('subprocess.run', return_value=subprocess.CompletedProcess([], 0, '', '')), patch.object(Path, 'is_file', is_file), patch.object(Path, 'read_text', read), patch.object(Path, 'is_dir', lambda path: str(path) == '/etc/cron.d' and failure == 'list'), patch.object(Path, 'iterdir', listing):
+                    runpy.run_path(str(ROOT/'roles/recovery/files/recovery_probe.py'), run_name='__main__')
+                result = json.loads(output.getvalue())
+                self.assertTrue(result['service_probe_failed'])
+                self.assertFalse(result['ddns_active'])
+
 if __name__ == '__main__': unittest.main()
