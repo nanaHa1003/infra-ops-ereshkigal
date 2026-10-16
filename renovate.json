@@ -8,13 +8,26 @@
 
   "packageRules": [
     {
-      "description": "Group all minor and patch updates into a single PR to reduce noise",
+      "description": "Keep application minor, patch and digest updates independent for deployment review",
       "matchUpdateTypes": ["minor", "patch", "digest"],
-      "groupName": "minor and patch updates"
+      "groupName": null
     },
     {
-      "description": "Always open individual PRs for major version bumps — these warrant deliberate review",
+      "description": "Group non-major CI tooling updates separately from application updates",
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "groupName": "CI tooling updates"
+    },
+    {
+      "description": "Keep major version updates in individual PRs for explicit migration review",
       "matchUpdateTypes": ["major"],
+      "groupName": null
+    },
+    {
+      "description": "Temporarily keep CI Python below 3.15: current Ansible CLI fails on removed dataclasses internals; revisit after compatibility validation",
+      "matchManagers": ["github-actions"],
+      "matchPackageNames": ["python"],
+      "allowedVersions": "<3.15",
       "groupName": null
     }
   ],
