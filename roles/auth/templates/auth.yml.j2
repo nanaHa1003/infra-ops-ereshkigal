@@ -61,8 +61,8 @@ services:
 
       AUTHENTIK_EMAIL__TIMEOUT: 10
     volumes:
-      - {{ storage_root }}/authentik/media:/media:Z
-      - {{ storage_root }}/authentik/templates:/templates:Z
+      - {{ storage_root }}/authentik/media:/media:z
+      - {{ storage_root }}/authentik/templates:/templates:z
     depends_on:
       postgresql:
         condition: service_healthy
@@ -86,8 +86,8 @@ services:
     user: root
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:z
-      - {{ storage_root }}/authentik/media:/media:Z
-      - {{ storage_root }}/authentik/templates:/templates:Z
+      - {{ storage_root }}/authentik/media:/media:z
+      - {{ storage_root }}/authentik/templates:/templates:z
     depends_on:
       postgresql:
         condition: service_healthy

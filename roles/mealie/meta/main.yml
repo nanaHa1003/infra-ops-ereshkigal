@@ -12,6 +12,5 @@ galaxy_info:
       versions:
         - "43"
 
-dependencies:
-  - role: proxy
-  - role: auth
+# Ordering is explicit in site.yml; teardown never deploys dependencies.
+dependencies: []

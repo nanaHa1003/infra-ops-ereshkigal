@@ -1,0 +1,12 @@
+---
+# Networks outlive individual stacks and may have legacy Compose labels.
+# Preserve existing endpoints and labels; never force network replacement.
+- name: Ensure shared bridge networks are present
+  community.docker.docker_network:
+    name: "{{ item }}"
+    state: present
+    appends: true
+    force: false
+  loop:
+    - homelab_backend
+    - socket_net

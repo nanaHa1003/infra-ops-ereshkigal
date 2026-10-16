@@ -5,8 +5,57 @@
 # Pin the Python interpreter to suppress autodiscovery warnings from Python 3.14
 ansible_python_interpreter: /usr/bin/python3
 
-# Hardware acceleration for Immich machine-learning (Intel OpenVINO)
-# These device paths are specific to this host's hardware.
-immich_ml_devices:
-  - /dev/dri:/dev/dri
-immich_ml_usb_bus: /dev/bus/usb
+# OpenVINO failed on this host; use CPU inference without hardware passthrough.
+immich_ml_devices: []
+immich_ml_usb_bus: ""
+
+# User requested scheduled backups on this host. Repository init remains opt-in.
+backup_timers_enabled: true
+
+backup_repositories:
+  database:
+    url: "s3:https://s3.us-west-004.backblazeb2.com/homelab-db-snapshots/ereshkigal"
+
+backup_jobs:
+  database:
+    repository: database
+    sources:
+      - {id: authentik-db, kind: postgres, container: auth-postgresql-1}
+      - {id: n8n-db, kind: postgres, container: n8n-n8n-postgres-1}
+      - {id: immich-db, kind: postgres, container: immich_postgres}
+      - {id: wordpress-db, kind: mariadb, container: wordpress-mariadb-1}
+      - {id: mealie-db, kind: sqlite, path: "{{ storage_root }}/mealie/data/mealie.db"}
+      - {id: pinchflat-db, kind: sqlite, path: "{{ storage_root }}/pinchflat/config/db/pinchflat.db"}
+      - {id: n8n-key, kind: files, path: "{{ storage_root }}/n8n/data/config"}
+      - {id: homepage-config, kind: files, path: "{{ storage_root }}/homepage/config"}
+      - {id: authentik-templates, kind: files, path: "{{ storage_root }}/authentik/templates"}
+      - {id: mealie-prompts, kind: files, path: "{{ storage_root }}/mealie/prompts"}
+      - {id: pinchflat-extras, kind: files, path: "{{ storage_root }}/pinchflat/config/extras"}
+      - {id: wordpress-config, kind: files, path: "{{ storage_root }}/wordpress/html/wp-config.php"}
+      - {id: wordpress-themes, kind: files, path: "{{ storage_root }}/wordpress/html/wp-content/themes"}
+      - {id: wordpress-plugins, kind: files, path: "{{ storage_root }}/wordpress/html/wp-content/plugins"}
+      - {id: wordpress-mu-plugins, kind: files, path: "{{ storage_root }}/wordpress/html/wp-content/mu-plugins", optional: true}
+      - {id: wordpress-htaccess, kind: files, path: "{{ storage_root }}/wordpress/html/.htaccess", optional: true}
+      - {id: aria2-config, kind: files, path: "{{ storage_root }}/aria2/config/aria2.conf"}
+      - {id: aria2-settings, kind: files, path: "{{ storage_root }}/aria2/config/setting.conf"}
+      - {id: aria2-script-settings, kind: files, path: "{{ storage_root }}/aria2/config/script.conf"}
+      - {id: aria2-file-filter, kind: files, path: "{{ storage_root }}/aria2/config/文件过滤.conf"}
+      - {id: aria2-scripts, kind: files, path: "{{ storage_root }}/aria2/config/script"}
+      - id: aria2-session
+        kind: aria2_session
+        path: "{{ storage_root }}/aria2/config/aria2.session"
+        rpc_url: "http://127.0.0.1:6800/jsonrpc"
+      - {id: caddy-data, kind: files, path: "{{ storage_root }}/caddy/data"}
+      - {id: caddy-config, kind: files, path: "{{ storage_root }}/caddy/config"}
+      - {id: caddyfile, kind: files, path: "{{ stack_root }}/proxy/Caddyfile"}
+      - {id: ddns, kind: files, path: /usr/local/bin/ddupdate.sh}
+      - {id: proxy-compose, kind: files, path: "{{ stack_root }}/proxy/docker-compose.yml"}
+      - {id: socket-compose, kind: files, path: "{{ stack_root }}/docker-proxy/docker-compose.yml"}
+      - {id: auth-compose, kind: files, path: "{{ stack_root }}/auth/docker-compose.yml"}
+      - {id: wordpress-compose, kind: files, path: "{{ stack_root }}/wordpress/docker-compose.yml"}
+      - {id: pinchflat-compose, kind: files, path: "{{ stack_root }}/pinchflat/docker-compose.yml"}
+      - {id: immich-compose, kind: files, path: "{{ stack_root }}/immich/docker-compose.yml"}
+      - {id: mealie-compose, kind: files, path: "{{ stack_root }}/mealie/docker-compose.yml"}
+      - {id: homepage-compose, kind: files, path: "{{ stack_root }}/homepage/docker-compose.yml"}
+      - {id: n8n-compose, kind: files, path: "{{ stack_root }}/n8n/docker-compose.yml"}
+      - {id: aria2-compose, kind: files, path: "{{ stack_root }}/aria2/docker-compose.yml"}

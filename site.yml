@@ -3,24 +3,60 @@
   hosts: homelab
   become: true
 
+  pre_tasks:
+    - name: Validate enabled services
+      ansible.builtin.assert:
+        that:
+          - enabled_services is sequence
+          - enabled_services is not string
+          - enabled_services | difference(['proxy', 'auth', 'wordpress', 'pinchflat', 'immich', 'mealie', 'homepage', 'n8n', 'aria2']) | length == 0
+        fail_msg: "enabled_services must be a list of supported role names."
+      tags: [always]
+
+    - name: Validate service prerequisites
+      ansible.builtin.assert:
+        that:
+          - "'proxy' in enabled_services or enabled_services | difference(['aria2']) | length == 0"
+          - "'auth' in enabled_services or enabled_services | intersect(['mealie', 'homepage']) | length == 0"
+        fail_msg: "Enable proxy for web services, and auth for Mealie/Homepage."
+      tags: [always]
+
   roles:
     # OS baseline: Docker, SELinux, storage directories, DDNS
-    - common
+    - role: common
+      tags: [common]
 
     # Infrastructure layer: reverse proxy, TLS, Docker socket proxies
-    - proxy
-    - new-api
+    - role: proxy
+      when: "'proxy' in enabled_services"
+      tags: [proxy]
 
     # Identity provider: SSO / OIDC / LDAP
-    - auth
+    - role: auth
+      when: "'auth' in enabled_services"
+      tags: [auth]
 
     # Media services
-    - wordpress
-    - pinchflat
+    - role: wordpress
+      when: "'wordpress' in enabled_services"
+      tags: [wordpress]
+    - role: pinchflat
+      when: "'pinchflat' in enabled_services"
+      tags: [pinchflat]
 
     # Productivity & utility applications
-    - immich
-    - mealie
-    - homepage
-    - n8n
-    - aria2
+    - role: immich
+      when: "'immich' in enabled_services"
+      tags: [immich]
+    - role: mealie
+      when: "'mealie' in enabled_services"
+      tags: [mealie]
+    - role: homepage
+      when: "'homepage' in enabled_services"
+      tags: [homepage]
+    - role: n8n
+      when: "'n8n' in enabled_services"
+      tags: [n8n]
+    - role: aria2
+      when: "'aria2' in enabled_services"
+      tags: [aria2]

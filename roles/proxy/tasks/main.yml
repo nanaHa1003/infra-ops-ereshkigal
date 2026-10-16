@@ -9,7 +9,9 @@
   ansible.builtin.template:
     src: Caddyfile.j2
     dest: "{{ stack_root }}/proxy/Caddyfile"
-    mode: '0644'
+    mode: '0600'
+  diff: false
+  no_log: true
   register: proxy_caddy_config
 
 - name: Deploy Caddy Compose
@@ -18,15 +20,6 @@
     dest: "{{ stack_root }}/proxy/docker-compose.yml"
     mode: '0644'
   register: proxy_caddy_compose
-
-- name: Start/Update Caddy reverse proxy
-  community.docker.docker_compose_v2:
-    project_src: "{{ stack_root }}/proxy"
-    state: present
-    pull: always
-  # This ensures that even if only the Caddyfile changed, we trigger an update
-  when: proxy_caddy_config.changed or proxy_caddy_compose.changed or proxy_force_restart
-  tags: [molecule-notest]
 
 - name: Create Docker socket proxy directory
   ansible.builtin.file:
@@ -41,10 +34,34 @@
     mode: '0644'
   register: proxy_socket_compose
 
+- name: Ensure shared Docker networks exist
+  ansible.builtin.import_tasks: networks.yml
+  tags: [molecule-notest]
+
+- name: Start/Update Caddy reverse proxy
+  community.docker.docker_compose_v2:
+    project_src: "{{ stack_root }}/proxy"
+    project_name: proxy
+    files:
+      - docker-compose.yml
+      - ../docker-proxy/docker-compose.yml
+    services: [caddy]
+    dependencies: false
+    state: present
+    pull: "{{ 'always' if pull_images | default(false) | bool else 'missing' }}"
+    recreate: "{{ 'always' if proxy_caddy_config.changed or proxy_force_restart | bool else 'auto' }}"
+  tags: [molecule-notest]
+
 - name: Start/Update Docker socket proxies
   community.docker.docker_compose_v2:
-    project_src: "{{ stack_root }}/docker-proxy"
+    project_src: "{{ stack_root }}/proxy"
+    project_name: proxy
+    files:
+      - docker-compose.yml
+      - ../docker-proxy/docker-compose.yml
+    services: [docker-ro, docker-rw]
+    dependencies: false
     state: present
-    pull: always
-  when: proxy_socket_compose.changed or proxy_force_restart
+    pull: "{{ 'always' if pull_images | default(false) | bool else 'missing' }}"
+    recreate: "{{ 'always' if proxy_force_restart | bool else 'auto' }}"
   tags: [molecule-notest]

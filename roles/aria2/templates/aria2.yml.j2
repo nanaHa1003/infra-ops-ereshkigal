@@ -13,7 +13,7 @@ services:
       - PUID=1000
       - PGID=1000
       - UMASK_SET=022
-      - RPC_SECRET={{ vault_secrets.aria2.rpc_secret }}
+      - SECRET={{ vault_secrets.aria2.rpc_secret }}
       - RPC_PORT={{ aria2_rpc_port }}
       - LISTEN_PORT={{ aria2_bt_port }}
       - TZ={{ timezone }}

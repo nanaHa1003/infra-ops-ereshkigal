@@ -1,0 +1,11 @@
+[Unit]
+Description=Six-hour backup schedule for {{ backup_job.key }}
+
+[Timer]
+OnCalendar={{ backup_job.value.schedule | default(backup_schedule) }}
+Persistent=true
+AccuracySec=1min
+Unit=homelab-backup@{{ backup_job.key }}.service
+
+[Install]
+WantedBy=timers.target

@@ -11,13 +11,15 @@
   ansible.builtin.template:
     src: n8n.yml.j2
     dest: "{{ stack_root }}/n8n/docker-compose.yml"
-    mode: '0644'
+    mode: '0600'
+  diff: false
+  no_log: true
   register: n8n_compose
 
 - name: Start/Update n8n
   community.docker.docker_compose_v2:
     project_src: "{{ stack_root }}/n8n"
     state: present
-    pull: always
-  when: n8n_compose.changed or n8n_force_restart
+    pull: "{{ 'always' if pull_images | default(false) | bool else 'missing' }}"
+    recreate: "{{ 'always' if n8n_force_restart | bool else 'auto' }}"
   tags: [molecule-notest]

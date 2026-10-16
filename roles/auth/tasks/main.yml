@@ -11,13 +11,15 @@
   ansible.builtin.template:
     src: auth.yml.j2
     dest: "{{ stack_root }}/auth/docker-compose.yml"
-    mode: '0644'
+    mode: '0600'
+  diff: false
+  no_log: true
   register: auth_compose
 
 - name: Start/Update Authentik
   community.docker.docker_compose_v2:
     project_src: "{{ stack_root }}/auth"
     state: present
-    pull: always
-  when: auth_compose.changed or auth_force_restart
+    pull: "{{ 'always' if pull_images | default(false) | bool else 'missing' }}"
+    recreate: "{{ 'always' if auth_force_restart | bool else 'auto' }}"
   tags: [molecule-notest]

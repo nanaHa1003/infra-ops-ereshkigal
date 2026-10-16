@@ -11,13 +11,15 @@
   ansible.builtin.template:
     src: immich.yml.j2
     dest: "{{ stack_root }}/immich/docker-compose.yml"
-    mode: '0644'
+    mode: '0600'
+  diff: false
+  no_log: true
   register: immich_compose
 
 - name: Start/Update Immich
   community.docker.docker_compose_v2:
     project_src: "{{ stack_root }}/immich"
     state: present
-    pull: always
-  when: immich_compose.changed or immich_force_restart
+    pull: "{{ 'always' if pull_images | default(false) | bool else 'missing' }}"
+    recreate: "{{ 'always' if immich_force_restart | bool else 'auto' }}"
   tags: [molecule-notest]

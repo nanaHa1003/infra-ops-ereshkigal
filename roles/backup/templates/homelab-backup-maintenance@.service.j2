@@ -1,0 +1,21 @@
+[Unit]
+Description=Homelab backup retention and metadata check %i
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+UMask=0077
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
+Environment=TZ=Asia/Taipei
+Environment=RESTIC_CACHE_DIR={{ backup_state_root }}/cache
+ExecStart=/usr/bin/python3 {{ backup_program_dir }}/backup_runner.py --config {{ backup_config_dir }}/config.json maintenance %i
+TimeoutStartSec=115min
+KillMode=control-group
+Nice=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths={{ backup_state_root }}

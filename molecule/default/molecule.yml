@@ -150,10 +150,9 @@ provisioner:
           pinchflat:
             username: "test-user"
             password: "test-pass"
-        # Immich hardware devices (stub for testing — no real GPU needed)
-        immich_ml_devices:
-          - /dev/null:/dev/null
-        immich_ml_usb_bus: /dev/null
+        # Exercise the production CPU inference configuration.
+        immich_ml_devices: []
+        immich_ml_usb_bus: ""
 
 verifier:
   name: ansible

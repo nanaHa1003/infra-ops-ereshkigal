@@ -1,0 +1,137 @@
+---
+- name: Validate backup configuration maps
+  ansible.builtin.assert:
+    that:
+      - backup_repositories is mapping
+      - backup_jobs is mapping
+      - backup_jobs | length > 0
+      - backup_repositories | length > 0
+      - backup_state_root.startswith('/var/lib/')
+      - "'..' not in backup_state_root.split('/')"
+      - backup_state_root is match('^/var/lib/[a-zA-Z0-9_/-]+$')
+      - backup_config_dir is match('^/[a-zA-Z0-9_/-]+$')
+      - backup_program_dir is match('^/[a-zA-Z0-9_/-]+$')
+    quiet: true
+
+- name: Validate repository credentials
+  ansible.builtin.assert:
+    that:
+      - item.key is match('^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$')
+      - item.value.url is string
+      - item.value.url | length > 0
+      - vault_secrets.backup.repositories[item.key].access_key_id | length > 0
+      - vault_secrets.backup.repositories[item.key].secret_access_key | length > 0
+      - vault_secrets.backup.repositories[item.key].restic_password | length > 0
+    quiet: true
+  loop: "{{ backup_repositories | dict2items }}"
+  no_log: true
+
+- name: Validate job prerequisites
+  ansible.builtin.assert:
+    that:
+      - item.key is match('^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$')
+      - item.value.repository in backup_repositories
+      - item.value.sources is sequence
+      - item.value.sources is not string
+      - item.value.sources | length > 0
+      - vault_secrets.backup.jobs[item.key].healthchecks_ping_url | length > 0
+    quiet: true
+  loop: "{{ backup_jobs | dict2items }}"
+  no_log: true
+
+- name: Validate backup source definitions before installation
+  ansible.builtin.assert:
+    that:
+      - item.id is match('^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$')
+      - item.kind in ['postgres', 'mariadb', 'sqlite', 'files', 'aria2_session']
+      - >-
+        item.kind not in ['postgres', 'mariadb'] or
+        (item.container | default('') is match('^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$'))
+      - >-
+        item.kind in ['postgres', 'mariadb'] or
+        ((item.path | default('')).startswith('/') and
+        '..' not in (item.path | default('')).split('/') and
+        '\n' not in (item.path | default('')) and '\r' not in (item.path | default('')))
+    quiet: true
+  loop: "{{ backup_jobs.values() | map(attribute='sources') | flatten }}"
+  loop_control:
+    label: "{{ item.id | default('invalid source') }}"
+
+- name: Install backup dependencies
+  ansible.builtin.package:
+    name: [restic, python3]
+    state: present
+  when: backup_install_packages | bool
+
+- name: Create protected backup directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  loop:
+    - "{{ backup_state_root }}"
+    - "{{ backup_state_root }}/staging"
+    - "{{ backup_config_dir }}"
+    - "{{ backup_program_dir }}"
+
+- name: Install backup runner and source adapters
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ backup_program_dir }}/{{ item }}"
+    owner: root
+    group: root
+    mode: "0700"
+  loop: [backup_runner.py, backup_sources.py]
+
+- name: Deploy protected backup configuration
+  ansible.builtin.template:
+    src: config.json.j2
+    dest: "{{ backup_config_dir }}/config.json"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+  diff: false
+
+- name: Validate installed backup configuration
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/python3
+      - "{{ backup_program_dir }}/backup_runner.py"
+      - --config
+      - "{{ backup_config_dir }}/config.json"
+      - validate
+      - "{{ backup_jobs | first }}"
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Install backup service templates
+  ansible.builtin.template:
+    src: "homelab-backup{{ item }}@.service.j2"
+    dest: "/etc/systemd/system/homelab-backup{{ item }}@.service"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: ['', '-maintenance', '-check']
+  notify: Reload backup systemd units
+
+- name: Install job timers
+  ansible.builtin.include_tasks: timer.yml
+  loop: "{{ backup_jobs | dict2items }}"
+  loop_control:
+    loop_var: backup_job
+
+- name: Apply backup systemd changes
+  ansible.builtin.meta: flush_handlers
+
+- name: Configure backup timer activation
+  ansible.builtin.include_tasks: activate.yml
+  loop: "{{ backup_jobs | dict2items }}"
+  loop_control:
+    loop_var: backup_job
+
+- name: Initialize repositories only when explicitly requested
+  ansible.builtin.include_tasks: initialize.yml
+  when: backup_initialize_repositories | bool

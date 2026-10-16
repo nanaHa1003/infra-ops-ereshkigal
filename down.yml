@@ -4,33 +4,58 @@
   become: true
 
   tasks:
-    # Tear down in reverse dependency order
+    # Stop existing stacks, including services omitted from enabled_services.
 
-    - name: Stop utility applications
-      ansible.builtin.include_role:
-        name: "{{ item }}"
+    - name: Stop aria2 stack
+      ansible.builtin.import_role:
+        name: aria2
         tasks_from: down.yml
-      loop:
-        - aria2
-        - n8n
-        - homepage
-        - mealie
-        - immich
+      tags: [aria2]
 
-    - name: Stop media services
-      ansible.builtin.include_role:
-        name: "{{ item }}"
+    - name: Stop n8n stack
+      ansible.builtin.import_role:
+        name: n8n
         tasks_from: down.yml
-      loop:
-        - pinchflat
-        - wordpress
+      tags: [n8n]
 
-    - name: Stop identity provider
-      ansible.builtin.include_role:
+    - name: Stop homepage stack
+      ansible.builtin.import_role:
+        name: homepage
+        tasks_from: down.yml
+      tags: [homepage]
+
+    - name: Stop mealie stack
+      ansible.builtin.import_role:
+        name: mealie
+        tasks_from: down.yml
+      tags: [mealie]
+
+    - name: Stop immich stack
+      ansible.builtin.import_role:
+        name: immich
+        tasks_from: down.yml
+      tags: [immich]
+
+    - name: Stop pinchflat stack
+      ansible.builtin.import_role:
+        name: pinchflat
+        tasks_from: down.yml
+      tags: [pinchflat]
+
+    - name: Stop wordpress stack
+      ansible.builtin.import_role:
+        name: wordpress
+        tasks_from: down.yml
+      tags: [wordpress]
+
+    - name: Stop auth stack
+      ansible.builtin.import_role:
         name: auth
         tasks_from: down.yml
+      tags: [auth]
 
-    - name: Stop reverse proxy and socket proxies
-      ansible.builtin.include_role:
+    - name: Stop proxy stack
+      ansible.builtin.import_role:
         name: proxy
         tasks_from: down.yml
+      tags: [proxy]

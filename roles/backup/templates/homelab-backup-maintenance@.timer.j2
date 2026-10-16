@@ -1,0 +1,10 @@
+[Unit]
+Description=Weekly backup maintenance for {{ backup_job.key }}
+
+[Timer]
+OnCalendar={{ backup_job.value.maintenance_schedule | default(backup_maintenance_schedule) }}
+Persistent=true
+Unit=homelab-backup-maintenance@{{ backup_job.key }}.service
+
+[Install]
+WantedBy=timers.target

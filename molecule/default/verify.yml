@@ -51,6 +51,24 @@
       loop_control:
         loop_var: service
 
+    - name: Verify rendered secret files are root-only
+      ansible.builtin.stat:
+        path: "{{ stack_root }}/{{ item }}"
+      register: secret_file
+      failed_when: >
+        not secret_file.stat.exists or
+        secret_file.stat.mode != "0600" or
+        secret_file.stat.uid != 0
+      loop:
+        - proxy/Caddyfile
+        - auth/docker-compose.yml
+        - wordpress/docker-compose.yml
+        - pinchflat/docker-compose.yml
+        - immich/docker-compose.yml
+        - mealie/docker-compose.yml
+        - n8n/docker-compose.yml
+        - aria2/docker-compose.yml
+
     # --- Content correctness checks ---
 
     - name: Verify Homepage uses PUID (not GUID typo)

@@ -1,0 +1,126 @@
+---
+- name: Verify backup isolation and permissions
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Read protected file metadata
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - /etc/homelab-backup
+        - /etc/homelab-backup/config.json
+        - /var/lib/homelab-backup
+        - /usr/local/libexec/homelab-backup/backup_runner.py
+      register: backup_file_metadata
+
+    - name: Assert root-only backup permissions
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.uid == 0
+          - item.stat.gid == 0
+          - item.stat.mode in ['0600', '0700']
+      loop: "{{ backup_file_metadata.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Check timer state
+      ansible.builtin.command:
+        argv: [systemctl, is-active, "homelab-backup{{ item }}@database.timer"]
+      changed_when: false
+      failed_when: backup_timer_state.rc != 3
+      register: backup_timer_state
+      loop: ['', '-maintenance', '-check']
+
+    - name: Validate systemd service definitions
+      ansible.builtin.command:
+        argv:
+          - systemd-analyze
+          - verify
+          - /etc/systemd/system/homelab-backup@database.service
+          - /etc/systemd/system/homelab-backup-maintenance@database.service
+          - /etc/systemd/system/homelab-backup-check@database.service
+      changed_when: false
+
+    - name: Check that deployment did not initialize the repository
+      ansible.builtin.stat:
+        path: /var/lib/homelab-backup/test-repository
+      register: backup_repository_metadata
+
+    - name: Assert deployment has no backup side effects
+      ansible.builtin.assert:
+        that:
+          - not backup_repository_metadata.stat.exists
+
+    - name: Create isolated local-run configuration without network callbacks
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3
+          - -c
+          - >-
+            import json, pathlib;
+            config = json.loads(pathlib.Path('/etc/homelab-backup/config.json').read_text());
+            config['jobs']['database']['healthchecks_ping_url'] = '';
+            target = pathlib.Path('/etc/homelab-backup/local-test.json');
+            target.write_text(json.dumps(config)); target.chmod(0o600)
+      changed_when: true
+
+    - name: Initialize disposable local repository explicitly
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3
+          - /usr/local/libexec/homelab-backup/backup_runner.py
+          - --config
+          - /etc/homelab-backup/local-test.json
+          - init
+          - database
+      changed_when: true
+
+    - name: Create test service override directory
+      ansible.builtin.file:
+        path: /etc/systemd/system/homelab-backup@database.service.d
+        state: directory
+        mode: "0755"
+
+    - name: Use only local test configuration for service execution
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/homelab-backup@database.service.d/test.conf
+        mode: "0644"
+        content: |
+          [Service]
+          ExecStart=
+          ExecStart=/usr/bin/python3 /usr/local/libexec/homelab-backup/backup_runner.py --config /etc/homelab-backup/local-test.json backup database
+
+    - name: Exercise actual sandboxed backup service against local data
+      ansible.builtin.systemd_service:
+        name: homelab-backup@database.service
+        daemon_reload: true
+        state: started
+
+    - name: Restore local snapshot to fresh protected scratch directory
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3
+          - /usr/local/libexec/homelab-backup/backup_runner.py
+          - --config
+          - /etc/homelab-backup/local-test.json
+          - restore
+          - database
+      changed_when: true
+
+    - name: Check restored SQLite data and staging cleanup
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3
+          - -c
+          - >-
+            import pathlib, sqlite3;
+            root = pathlib.Path('/var/lib/homelab-backup');
+            paths = list((root / 'restores').rglob('database.sqlite'));
+            assert len(paths) == 1;
+            db = sqlite3.connect(paths[0]);
+            assert db.execute('PRAGMA integrity_check').fetchall() == [('ok',)];
+            assert db.execute('SELECT name FROM fixture').fetchall() == [('restorable',)];
+            db.close();
+            assert not (root / 'staging/database').exists()
+      changed_when: false

@@ -1,0 +1,6 @@
+---
+- name: Configure database and configuration backups
+  hosts: homelab
+  become: true
+  roles:
+    - backup

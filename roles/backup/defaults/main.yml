@@ -1,0 +1,17 @@
+---
+backup_state_root: /var/lib/homelab-backup
+backup_config_dir: /etc/homelab-backup
+backup_program_dir: /usr/local/libexec/homelab-backup
+backup_timers_enabled: false
+backup_initialize_repositories: false
+backup_repositories: {}
+backup_jobs: {}
+backup_install_packages: true
+backup_schedule: "*-*-* 00,06,12,18:00:00 Asia/Taipei"
+backup_maintenance_schedule: "Sun *-*-* 03:00:00 Asia/Taipei"
+backup_check_schedule: "*-*-01 09:00:00 Asia/Taipei"
+backup_retention:
+  within: 48h
+  daily: 14
+  weekly: 8
+  monthly: 12
