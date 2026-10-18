@@ -63,11 +63,11 @@ Files: recovery manifest/models/files/verify/registry, `tests/test_recovery_dire
 ## Task 5: Real round trips, failure/concurrency acceptance and documentation
 
 Files: `tests/test_backup_integration.py`, new `tests/test_backup_independent_integration.py`, `docs/backup.md`, `docs/recovery.md`.
-- [ ] Use disposable real Restic repositories to back up/restore direct media with a staged SQLite export; compare hashes and test a media file named manifest.json.
-- [ ] Hold one repository lock in another process and back up another repository successfully. Inject bad destination and monitoring failures, then verify unaffected snapshots.
-- [ ] Run full suite; run available container/syntax/lint checks and disclose skips precisely.
-- [ ] Document safe separate deployment/init/start/status/restore commands and local no-monitoring behavior.
-- [ ] Obtain one independent whole-branch review; fix important findings with regression tests. Commit changes, leave branch ready for review; do not merge or deploy.
+- [x] Use disposable real Restic repositories to back up/restore direct media with a staged SQLite export; compare hashes and test a media file named manifest.json.
+- [x] Hold one repository lock in another process and back up another repository successfully. Inject bad destination and monitoring failures, then verify unaffected snapshots.
+- [x] Run full suite; run available container/syntax/lint checks and disclose skips precisely.
+- [x] Document safe separate deployment/init/start/status/restore commands and local no-monitoring behavior.
+- [x] Obtain one independent whole-branch review; fix important findings with regression tests. Commit changes, leave branch ready for review; do not merge or deploy.
 
 ## Execution Ledger
 
@@ -81,3 +81,6 @@ Task 4: v3 recovery RED→GREEN; full existing suite 173 tests passed (10 enviro
 Task 5: real Restic integration 4/4 passed after anchoring exclusions to the source root (nested files with DB-like names remain protected). Fresh full suite: 178 tests passed, 6 Docker-dependent skips; no local Docker client is installed. CI-style isolated lint and syntax validation uses only committed synthetic secrets. Independent whole-branch review requested before finishing.
 Ruling: new jobs take a shared legacy-lock gate in addition to their URL lock; this preserves parallelism between new destinations while safely refusing overlap with an already-running old exclusive-lock runner. Migration gate RED→GREEN.
 Ruling: success metadata records completion time/job rather than the pre-promotion snapshot ID, because Restic retagging may replace that ID.
+
+Final review: no Critical findings. Fixed the Important quadratic mapping scan using component-sorted ancestor checks. Scale regression RED: 504,509 Path constructions for 1,003 artifacts; GREEN: direct recovery suite 8/8 in 0.165s. Strengthened real Restic acceptance to assert live SQLite/WAL/SHM are absent from restored scratch, while nested DB-named attachments and the exported SQLite database remain recoverable. This test-coverage finding was regraded as important because live-DB exclusion is an explicit backup safety requirement. Real integration 4/4 passed; fresh full suite 179 tests, 6 Docker-dependent skips, no failures. No deferred review findings.
+CI observation: initial lint/secret scan passed. The real database matrix passed PG16, PG18, MariaDB and n8n, but failed pulling the existing public Immich image before its SQL test. The public manifest was verified HTTP 200 with amd64/arm64 support; retain the pinned image and retry CI on the final commit before deciding whether further diagnostics are required. No production operations were run.

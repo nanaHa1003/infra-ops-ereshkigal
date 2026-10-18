@@ -62,17 +62,21 @@ def build_mappings(model: dict, target: dict, registry: dict) -> list:
                     "mount": target["storage_mount"], "run_id": target.get("run_id"),
                     "legacy": model.get("schema_version") == 1,
                     "core_image": target.get("wordpress_core_image") if service == "wordpress" else None})
-    for index, first in enumerate(mappings):
-        a = Path(first["target"])
-        for second in mappings[index + 1:]:
-            b = Path(second["target"])
-            if first["source_id"] != second["source_id"] and (a == b or a in b.parents or b in a.parents):
-                ancestor = first if a == b or a in b.parents else second
-                compatible = (first["service"], first["owner"], first["group"]) == (second["service"], second["owner"], second["group"])
-                directory = ancestor["artifact"]["entry_type"] == "directory"
-                both_directories = first["artifact"]["entry_type"] == second["artifact"]["entry_type"] == "directory"
-                if not compatible or not directory or (a == b and not both_directories):
-                    raise BackupError("recovery source destinations overlap")
+    # Component sorting keeps ancestors adjacent without comparing every file pair.
+    indexed = sorted(((Path(row["target"]).parts, row) for row in mappings), key=lambda item: item[0])
+    ancestors = []
+    for parts, row in indexed:
+        while ancestors and parts[:len(ancestors[-1][0])] != ancestors[-1][0]:
+            ancestors.pop()
+        for ancestor_parts, ancestor in ancestors:
+            if ancestor["source_id"] == row["source_id"]:
+                continue
+            compatible = (ancestor["service"], ancestor["owner"], ancestor["group"]) == (row["service"], row["owner"], row["group"])
+            directory = ancestor["artifact"]["entry_type"] == "directory"
+            both_directories = directory and row["artifact"]["entry_type"] == "directory"
+            if not compatible or not directory or (ancestor_parts == parts and not both_directories):
+                raise BackupError("recovery source destinations overlap")
+        ancestors.append((parts, row))
     return mappings
 
 

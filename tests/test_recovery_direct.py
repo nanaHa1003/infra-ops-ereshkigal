@@ -58,3 +58,12 @@ class DirectRecovery(unittest.TestCase):
         def transport(repo,args,**kwargs):return (json.dumps([snap]) if args[0]=='snapshots' else nodes).encode()
         with patch.object(self.manifest,'restic',side_effect=transport):
             self.assertEqual(self.manifest.select_snapshot({},scope)['manifest_path'],str(self.stage/'manifest.json'))
+
+    def test_large_media_inventory_uses_bounded_path_construction(self):
+        model=self.model()
+        artifacts=model['sources']['mealie-data']['artifacts']
+        artifacts.extend({'relative_path':f'mealie-data/photos/{index}.jpg','entry_type':'file','size':1,'sha256':None} for index in range(1000))
+        with patch.object(self.files,'Path',wraps=Path) as paths:
+            mappings=self.files.build_mappings(model,self.target,self.registry)
+        self.assertGreater(len(mappings),1000)
+        self.assertLess(paths.call_count,20*len(mappings))

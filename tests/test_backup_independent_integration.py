@@ -19,12 +19,21 @@ class IndependentRoundTrips(unittest.TestCase):
         for repo in repositories.values():self.runner.restic(repo,['init'])
 
     def test_media_restores_with_staged_sqlite_and_nested_manifest(self):
+        live=sqlite3.connect(self.media/'mealie.db')
+        self.addCleanup(live.close)
+        live.execute('PRAGMA journal_mode=WAL')
+        live.execute('UPDATE recipes SET id=1');live.commit()
+        self.assertTrue((self.media/'mealie.db-wal').exists())
+        self.assertTrue((self.media/'mealie.db-shm').exists())
         self.assertEqual(self.runner.run_job(self.cfg,'media'),0)
         scope={'repository':'media','host':'old-host','job':'media','staging_path':str(self.root/'state/staging/media'),'snapshot':'latest'}
         selection=self.recovery.select_snapshot(self.cfg['repositories']['media'],scope)
         raw=json.loads(self.runner.restic(self.cfg['repositories']['media'],['dump',selection['snapshot_id'],selection['manifest_path']],capture=True))
         model=self.recovery.normalize_manifest(raw,selection,{})
         restored=self.runner.restore_job(self.cfg,'media','latest')
+        direct_tree=restored/str(self.media).lstrip('/')
+        for name in ('mealie.db','mealie.db-wal','mealie.db-shm'):
+            self.assertFalse((direct_tree/name).exists(),name+' must not be archived from the live database')
         target={'storage_root':str(self.root/'replacement'),'storage_mount':'/','scratch_root':str(restored),'services':['mealie'],'run_id':'run'}
         registry={'mealie':{'sources':{'mealie-db':{'kind':'sqlite','layout':'file','target':'mealie/data/mealie.db','owner':os.getuid(),'group':os.getgid(),'mode':'0600'},'mealie-data':{'kind':'files','layout':'directory','target':'mealie/data','owner':os.getuid(),'group':os.getgid(),'mode':'0600'}}}}
         state={'run_id':'run','owned_paths':[],'restic_verified_snapshot':selection['snapshot_id']}
