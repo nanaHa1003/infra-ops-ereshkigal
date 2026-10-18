@@ -14,6 +14,7 @@ import urllib.request
 
 
 from backup_common import BackupError, checked_path, safe_id
+from backup_direct import scan_direct
 
 
 def command(args, *, output=None, input_file=None, timeout=1200):
@@ -137,6 +138,14 @@ def prepare_sources(sources, destination):
         seen.add(identifier)
         print("Exporting source: " + identifier, flush=True)
         kind = source["kind"]
+        if source.get("capture") == "direct":
+            path = checked_path(source["path"])
+            if path == destination or path in destination.parents or destination in path.parents:
+                raise BackupError("source overlaps staging directory")
+            if source["kind"] != "files":
+                raise BackupError("direct capture only supports file trees")
+            metadata[identifier] = scan_direct(source)
+            continue
         target = destination / identifier
         target.mkdir(mode=0o700)
         if kind in ("postgres", "mariadb"):

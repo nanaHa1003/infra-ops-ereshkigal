@@ -74,3 +74,4 @@ Files: `tests/test_backup_integration.py`, new `tests/test_backup_independent_in
 Pre-flight: shared interfaces defined above; legacy single-repository lock callers remain supported. User instruction authorizes inline implementation; no additional plan approval requested.
 
 Task 1: runtime isolation RED→GREEN; backup suite 41 tests passed (1 integration skip). Ruling: keep `repository_lock(config)` for existing single-repository callers and add an explicit repository selector for multi-repository administrative calls; lock identity uses normalized URL, not alias.
+Task 2: direct-source and manifest RED→GREEN; 46 backup tests passed (1 real-Restic test unavailable locally). Direct roots are directories, with staged files remaining the existing safe-copy path. No media copies or synthetic hashes are created.

@@ -19,6 +19,7 @@ from backup_common import BackupError, ResticError, checked_path, restic, safe_i
 from backup_sources import prepare_sources
 from backup_manifest import build_manifest
 from backup_runtime import scoped_config, repository_identity
+from backup_direct import direct_arguments, verify_direct
 
 
 def validate_config(config):
@@ -44,6 +45,8 @@ def validate_config(config):
             if identifier in seen:
                 raise BackupError("duplicate source identifier")
             seen.add(identifier)
+            if source.get("capture", "staged") not in ("staged", "direct") or (source.get("capture") == "direct" and source["kind"] != "files"):
+                raise BackupError("invalid source capture")
             if source["kind"] in ("postgres", "mariadb"):
                 safe_id(source["container"])
             elif source["kind"] in ("files", "sqlite", "aria2_session"):
@@ -128,12 +131,14 @@ def run_job(config, job_id):
                 (stage / "manifest.json").write_text(json.dumps(
                     build_manifest(stage, {**config, "job_id": job_id}, metadata), indent=2))
                 repo = config["repositories"][job["repository"]]
+                options, roots = direct_arguments(job["sources"], metadata)
                 result = restic(repo, ["backup", "--json", "--host", config["host"],
-                                      "--tag", "homelab-pending:" + job_id, "."], cwd=stage, capture=True)
+                                      "--tag", "homelab-pending:" + job_id, *options, ".", *roots], cwd=stage, capture=True)
                 summaries = [json.loads(line) for line in result.splitlines()]
                 snapshot = next(item["snapshot_id"] for item in summaries if item.get("message_type") == "summary")
                 if not re.fullmatch(r"[a-f0-9]{8,64}", snapshot):
                     raise BackupError("invalid backup summary")
+                verify_direct(job["sources"], metadata)
                 restic(repo, ["tag", "--add", "homelab-config-db:" + job_id,
                               "--remove", "homelab-pending:" + job_id, snapshot])
             finally:
