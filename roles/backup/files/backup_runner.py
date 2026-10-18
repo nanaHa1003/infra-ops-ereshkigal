@@ -18,6 +18,8 @@ import urllib.request
 from backup_common import BackupError, ResticError, checked_path, restic, safe_id
 from backup_sources import prepare_sources
 from backup_manifest import build_manifest
+from backup_runtime import scoped_config, repository_identity
+from backup_direct import DirectSourceChanged, direct_arguments, verify_direct
 
 
 def validate_config(config):
@@ -43,13 +45,17 @@ def validate_config(config):
             if identifier in seen:
                 raise BackupError("duplicate source identifier")
             seen.add(identifier)
+            if source.get("capture", "staged") not in ("staged", "direct") or (source.get("capture") == "direct" and source["kind"] != "files"):
+                raise BackupError("invalid source capture")
             if source["kind"] in ("postgres", "mariadb"):
                 safe_id(source["container"])
             elif source["kind"] in ("files", "sqlite", "aria2_session"):
                 checked_path(source["path"])
             else:
                 raise BackupError("invalid source kind")
-        ping = job.get("healthchecks_ping_url", "")
+        if not isinstance(job.get("healthchecks_enabled", True), bool):
+            raise BackupError("invalid monitoring option")
+        ping = job.get("healthchecks_ping_url", "") if job.get("healthchecks_enabled", True) else ""
         if ping:
             parsed = urllib.parse.urlsplit(ping)
             if parsed.scheme != "https" or parsed.hostname != "hc-ping.com" or parsed.query or parsed.fragment:
@@ -58,14 +64,26 @@ def validate_config(config):
 
 
 @contextmanager
-def repository_lock(config):
+def repository_lock(config, repository_id=None):
+    if repository_id is not None:
+        repository_id = safe_id(repository_id)
+        config = {**config, "repositories": {repository_id: config["repositories"][repository_id]}, "jobs": {}}
     state = validate_config(config)
+    if len(config["repositories"]) != 1:
+        raise BackupError("repository lock requires one destination")
     state.mkdir(mode=0o700, parents=True, exist_ok=True)
     state.chmod(0o700)
-    lockpath = checked_path(str(state / "repository.lock"))
-    with lockpath.open("a") as lock:
+    identity = repository_identity(next(iter(config["repositories"].values()))["url"])
+    lockdir = checked_path(str(state / "locks"))
+    lockdir.mkdir(mode=0o700, exist_ok=True)
+    lockpath = checked_path(str(lockdir / (identity + ".lock")))
+    legacy_path = checked_path(str(state / "repository.lock"))
+    with legacy_path.open("a") as legacy, lockpath.open("a") as lock:
+        legacy_path.chmod(0o600)
         lockpath.chmod(0o600)
         try:
+            # New jobs share this gate; only a still-running old exclusive holder blocks it.
+            fcntl.flock(legacy, fcntl.LOCK_SH | fcntl.LOCK_NB)
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError as exc:
             raise BackupError("another backup operation is running") from exc
@@ -73,6 +91,8 @@ def repository_lock(config):
 
 
 def notify(job, event):
+    if not job.get("healthchecks_enabled", True):
+        return True
     url = job.get("healthchecks_ping_url", "")
     if not url:
         return True
@@ -97,8 +117,11 @@ def run_job(config, job_id):
     job = None
     stage = None
     locked = False
+    phase = "configuration"
     try:
+        config = scoped_config(config, job_id)
         safe_id(job_id)
+        phase = "lock"
         with repository_lock(config) as state:
             locked = True
             job = config["jobs"][job_id]
@@ -106,27 +129,54 @@ def run_job(config, job_id):
             try:
                 if stage.exists():
                     shutil.rmtree(stage)
+                cache = checked_path(str(state / "cache" / job_id))
+                cache.mkdir(mode=0o700, parents=True, exist_ok=True)
+                config["repositories"][job["repository"]]["cache_dir"] = str(cache)
                 delivered = notify(job, "start")
+                phase = "source-export"
                 metadata = prepare_sources(job["sources"], stage)
+                phase = "manifest"
                 (stage / "manifest.json").write_text(json.dumps(
                     build_manifest(stage, {**config, "job_id": job_id}, metadata), indent=2))
                 repo = config["repositories"][job["repository"]]
+                options, roots = direct_arguments(job["sources"], metadata)
+                phase = "upload"
+                print("Uploading snapshot", flush=True)
                 result = restic(repo, ["backup", "--json", "--host", config["host"],
-                                      "--tag", "homelab-pending:" + job_id, "."], cwd=stage, capture=True)
+                                      "--tag", "homelab-pending:" + job_id, *options, str(stage) if roots else ".", *roots], cwd=stage, capture=True)
+                phase = "summary"
                 summaries = [json.loads(line) for line in result.splitlines()]
                 snapshot = next(item["snapshot_id"] for item in summaries if item.get("message_type") == "summary")
                 if not re.fullmatch(r"[a-f0-9]{8,64}", snapshot):
                     raise BackupError("invalid backup summary")
+                phase = "source-verification"
+                print("Verifying source inventories", flush=True)
+                verify_direct(job["sources"], metadata)
+                phase = "promotion"
+                print("Promoting verified snapshot", flush=True)
                 restic(repo, ["tag", "--add", "homelab-config-db:" + job_id,
                               "--remove", "homelab-pending:" + job_id, snapshot])
             finally:
                 if stage.exists():
                     shutil.rmtree(stage)
+            phase = "success-record"
+            status = checked_path(str(state / "status"))
+            status.mkdir(mode=0o700, exist_ok=True)
+            record = status / (job_id + ".json")
+            pending = status / (job_id + ".json.tmp")
+            pending.write_text(json.dumps({"job": job_id, "last_success": datetime.now(timezone.utc).isoformat()}))
+            pending.chmod(0o600)
+            pending.replace(record)
             delivered = notify(job, "success") and delivered
             print("Backup uploaded" if delivered else "Backup uploaded; monitoring delivery failed")
             return 0 if delivered else 2
-    except Exception:
-        print("Backup failed; inspect source availability, credentials and service status", file=sys.stderr)
+    except Exception as error:
+        detail = "operation failed; inspect source availability, credentials and service status"
+        if isinstance(error, DirectSourceChanged):
+            detail = str(error)
+        elif isinstance(error, ResticError) and isinstance(error.returncode, int):
+            detail = "restic exit=" + str(error.returncode)
+        print("Backup failed: phase=" + phase + "; " + detail, file=sys.stderr)
         if locked and job:
             notify(job, "fail")
         return 1
@@ -135,6 +185,7 @@ def run_job(config, job_id):
 def maintenance(config, job_id, preview=False):
     os.umask(0o077)
     try:
+        config = scoped_config(config, job_id)
         safe_id(job_id)
         with repository_lock(config):
             job = config["jobs"][job_id]
@@ -163,6 +214,7 @@ def maintenance(config, job_id, preview=False):
 def check_data(config, job_id, full=False):
     os.umask(0o077)
     try:
+        config = scoped_config(config, job_id)
         with repository_lock(config) as state:
             job = config["jobs"][safe_id(job_id)]
             counter = state / (job_id + "-check-quarter")
@@ -190,13 +242,14 @@ def scoped_snapshots(config, job_id):
 
 
 def snapshots(config, job_id):
+    config = scoped_config(config, job_id)
     with repository_lock(config):
         return scoped_snapshots(config, job_id)
 
 
 def ensure_initialized(config, repository_id):
     """Initialize only on restic's unambiguous repository-missing exit code."""
-    with repository_lock(config):
+    with repository_lock(config, repository_id):
         repo = config["repositories"][safe_id(repository_id)]
         try:
             restic(repo, ["snapshots", "--json"], capture=True)
@@ -213,6 +266,7 @@ def restore_job(config, job_id, snapshot):
     os.umask(0o077)
     if snapshot != "latest" and not re.fullmatch(r"[a-f0-9]{8,64}", snapshot):
         raise BackupError("invalid snapshot identifier")
+    config = scoped_config(config, job_id)
     with repository_lock(config) as state:
         job = config["jobs"][safe_id(job_id)]
         candidates = scoped_snapshots(config, job_id)
@@ -233,7 +287,7 @@ def restore_job(config, job_id, snapshot):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", default="/etc/homelab-backup/config.json")
+    parser.add_argument("--config", default=None)
     parser.add_argument("operation", choices=["validate", "backup", "init", "ensure-init", "maintenance", "retention-preview", "check", "snapshots", "restore"])
     parser.add_argument("identifier")
     parser.add_argument("--full", action="store_true", help="Read all repository data during check")
@@ -246,10 +300,14 @@ def main():
     signal.signal(signal.SIGALRM, interrupted)
     signal.alarm(6600)
     try:
-        config_path = checked_path(args.config)
+        default_config = Path("/etc/homelab-backup/jobs") / (safe_id(args.identifier) + ".json")
+        config_path = checked_path(args.config or (str(default_config) if default_config.exists() else "/etc/homelab-backup/config.json"))
         if config_path.stat().st_mode & 0o077:
             raise BackupError("configuration permissions must be root-only")
         config = json.loads(config_path.read_text())
+        if args.operation not in ("init", "ensure-init"):
+            config = scoped_config(config, args.identifier)
+            signal.alarm(config["jobs"][args.identifier].get("timeout", 6600))
         if args.operation == "validate":
             validate_config(config)
             for job in config["jobs"].values():
@@ -274,7 +332,7 @@ def main():
         if args.operation == "restore":
             print("Restored to protected scratch directory: " + str(restore_job(config, args.identifier, args.snapshot)))
             return 0
-        with repository_lock(config):
+        with repository_lock(config, args.identifier):
             restic(config["repositories"][safe_id(args.identifier)], ["init"])
         print("Repository initialized")
         return 0

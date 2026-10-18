@@ -67,7 +67,9 @@ def build_manifest(stage: Path, config: dict, exports: dict) -> dict:
         exported = exports[identifier]
         record = {key: exported[key] for key in ("version", "database", "role", "extensions", "image", "engines", "preload_libraries", "definers", "optional_absent") if key in exported}
         record.update(kind=source["kind"], source_path=source.get("path"), artifacts=[])
-        if not exported.get("optional_absent"):
+        if exported.get("capture") == "direct":
+            record.update(capture="direct", snapshot_root=exported.get("snapshot_root"), artifacts=exported.get("artifacts", []))
+        elif not exported.get("optional_absent"):
             root = checked_path(str(stage / identifier))
             if not root.is_dir():
                 raise BackupError("export artifact directory missing")
@@ -77,6 +79,9 @@ def build_manifest(stage: Path, config: dict, exports: dict) -> dict:
         elif source["kind"] in ("postgres", "mariadb"):
             record["verification"] = {"baseline": None, "status": "unavailable"}
             limitations.append("baseline_unavailable:" + identifier)
+        elif exported.get("capture") == "direct":
+            record["verification"] = {"baseline": None, "status": "restic_authenticated_content"}
+            limitations.append("non_atomic_live_capture:" + identifier)
         else:
             record["verification"] = {"baseline": None, "status": "not_applicable"}
         sources[identifier] = record
@@ -86,7 +91,8 @@ def build_manifest(stage: Path, config: dict, exports: dict) -> dict:
         images[service] = capture_project_images(project)
         if not images[service] or any(not item.get("registry_digests") for item in images[service]):
             limitations.append("image_digest_unavailable:" + service)
-    return {"schema_version": 2, "completed_exports_at": datetime.now(timezone.utc).isoformat(),
+    direct = any(source.get("capture") == "direct" for source in job["sources"])
+    return {"schema_version": 3 if direct else 2, "completed_exports_at": datetime.now(timezone.utc).isoformat(),
             "host": config["host"], "job": job_id, "domain": config.get("domain"), "deployment": deployment,
             "sources": sources, "images": images, "limitations": limitations,
-            "excluded": ["photos", "videos", "downloads", "attachments", "raw_database_volumes"]}
+            "excluded": job.get("excluded", ["raw_database_volumes"] if direct else ["photos", "videos", "downloads", "attachments", "raw_database_volumes"])}

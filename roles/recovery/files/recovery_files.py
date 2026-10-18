@@ -19,7 +19,12 @@ def build_mappings(model: dict, target: dict, registry: dict) -> list:
         safe_id(service)
         if service not in registry:
             raise BackupError("unsupported recovery service")
+        replaced = {identifier for source_id, spec in registry[service]["sources"].items()
+                    if source_id in model["sources"] and not model["sources"][source_id].get("optional_absent")
+                    for identifier in spec.get("replaces", [])}
         for identifier, definition in registry[service]["sources"].items():
+            if identifier in replaced:
+                continue
             if definition.get("layout") == "reference":
                 continue
             source = model["sources"].get(identifier)
@@ -50,17 +55,28 @@ def build_mappings(model: dict, target: dict, registry: dict) -> list:
                     raise BackupError("artifact escapes service root")
                 mappings.append({"source_id": identifier, "kind": source["kind"], "artifact": artifact,
                     "tree_root": model["selection"]["tree_root"], "target": str(output), "service_root": str(root),
+                    "direct": source.get("capture") == "direct", "snapshot_root": source.get("snapshot_root"),
+                    "snapshot_id": model["selection"].get("snapshot_id"), "full_wordpress": identifier == "wordpress-html",
                     "owner": definition.get("owner", 1000), "group": definition.get("group", 1000),
                     "mode": definition.get("mode", "0600"), "service": service,
                     "mount": target["storage_mount"], "run_id": target.get("run_id"),
                     "legacy": model.get("schema_version") == 1,
                     "core_image": target.get("wordpress_core_image") if service == "wordpress" else None})
-    for index, first in enumerate(mappings):
-        a = Path(first["target"])
-        for second in mappings[index + 1:]:
-            b = Path(second["target"])
-            if first["source_id"] != second["source_id"] and (a == b or a in b.parents or b in a.parents):
+    # Component sorting keeps ancestors adjacent without comparing every file pair.
+    indexed = sorted(((Path(row["target"]).parts, row) for row in mappings), key=lambda item: item[0])
+    ancestors = []
+    for parts, row in indexed:
+        while ancestors and parts[:len(ancestors[-1][0])] != ancestors[-1][0]:
+            ancestors.pop()
+        for ancestor_parts, ancestor in ancestors:
+            if ancestor["source_id"] == row["source_id"]:
+                continue
+            compatible = (ancestor["service"], ancestor["owner"], ancestor["group"]) == (row["service"], row["owner"], row["group"])
+            directory = ancestor["artifact"]["entry_type"] == "directory"
+            both_directories = directory and row["artifact"]["entry_type"] == "directory"
+            if not compatible or not directory or (ancestor_parts == parts and not both_directories):
                 raise BackupError("recovery source destinations overlap")
+        ancestors.append((parts, row))
     return mappings
 
 
@@ -91,6 +107,12 @@ def _artifact_path(row, scratch):
     tree = PurePosixPath(row["tree_root"])
     if not tree.is_absolute() or ".." in tree.parts:
         raise BackupError("invalid restored tree root")
+    if row.get("direct"):
+        root = PurePosixPath(row["snapshot_root"])
+        relative = PurePosixPath(relative_artifact(row["artifact"]["relative_path"]))
+        if not root.is_absolute() or ".." in root.parts or relative.parts[0] != row["source_id"]:
+            raise BackupError("invalid direct artifact path")
+        return checked_path(str(base.joinpath(*root.parts[1:], *relative.parts[1:])))
     return checked_path(str(base.joinpath(*tree.parts[1:]) / relative_artifact(row["artifact"]["relative_path"])))
 
 
@@ -118,8 +140,10 @@ def prepare_wordpress_core(image, destination, state):
         save_state(state)
 
 
-def validate_artifacts(mappings: list, scratch: Path) -> None:
+def validate_artifacts(mappings: list, scratch: Path, verified_snapshot=None) -> None:
     for row in mappings:
+        if row.get("direct") and (not verified_snapshot or verified_snapshot != row.get("snapshot_id")):
+            raise BackupError("direct artifacts require verified Restic restore")
         source = _artifact_path(row, scratch)
         artifact = row["artifact"]
         if not source.exists() or (artifact["entry_type"] == "directory") != source.is_dir():
@@ -129,6 +153,8 @@ def validate_artifacts(mappings: list, scratch: Path) -> None:
                 checked_path(str(descendant))
                 if not descendant.is_file() and not descendant.is_dir():
                     raise BackupError("unsupported legacy artifact")
+        if artifact["entry_type"] == "file" and source.stat().st_size != artifact["size"] and not row.get("legacy"):
+            raise BackupError("recovery artifact size differs")
         if artifact["entry_type"] == "file" and artifact.get("sha256"):
             digest = hashlib.sha256()
             with source.open("rb") as stream:
@@ -140,7 +166,7 @@ def validate_artifacts(mappings: list, scratch: Path) -> None:
 
 def install_artifacts(mappings: list, scratch: Path, state: dict) -> list:
     validate_targets(mappings, state)
-    validate_artifacts(mappings, scratch)
+    validate_artifacts(mappings, scratch, (state or {}).get("restic_verified_snapshot"))
     roots = {}
     for row in mappings:
         if row["kind"] in ("postgres", "mariadb"):
@@ -152,7 +178,7 @@ def install_artifacts(mappings: list, scratch: Path, state: dict) -> list:
             if str(root) not in state.setdefault("owned_paths", []):
                 state["owned_paths"].append(str(root))
             roots[str(root)] = row
-            if row["service"] == "wordpress" and root.name == "html":
+            if row["service"] == "wordpress" and root.name == "html" and not any(item.get("full_wordpress") for item in mappings if item["service"] == "wordpress"):
                 prepare_wordpress_core(row["core_image"], root, state)
                 for path in [root, *root.rglob("*")]:
                     _metadata(path, row, path.is_dir())

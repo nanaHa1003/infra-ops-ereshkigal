@@ -34,7 +34,7 @@
       - item.value.sources is sequence
       - item.value.sources is not string
       - item.value.sources | length > 0
-      - vault_secrets.backup.jobs[item.key].healthchecks_ping_url | length > 0
+      - not (item.value.healthchecks_enabled | default(true) | bool) or vault_secrets.backup.jobs[item.key].healthchecks_ping_url | length > 0
     quiet: true
   loop: "{{ backup_jobs | dict2items }}"
   no_log: true
@@ -53,9 +53,30 @@
         '..' not in (item.path | default('')).split('/') and
         '\n' not in (item.path | default('')) and '\r' not in (item.path | default('')))
     quiet: true
-  loop: "{{ backup_jobs.values() | map(attribute='sources') | flatten }}"
+  loop: "{{ (backup_jobs.values() | map(attribute='sources') | flatten) + (backup_jobs.values() | selectattr('extra_sources', 'defined') | map(attribute='extra_sources') | flatten) }}"
   loop_control:
     label: "{{ item.id | default('invalid source') }}"
+
+- name: Check for existing per-job configuration
+  ansible.builtin.stat:
+    path: "{{ backup_config_dir }}/jobs"
+  register: backup_existing_job_configs
+
+- name: Check running services before migrating legacy locking
+  ansible.builtin.command:
+    argv: [systemctl, list-units, --type=service, "--state=activating,active", --no-legend, --no-pager, "homelab-backup*@*.service"]
+  register: backup_running_legacy_services
+  changed_when: false
+  when:
+    - not ansible_check_mode
+    - not backup_existing_job_configs.stat.exists
+
+- name: Require legacy backups to finish before lock migration
+  ansible.builtin.assert:
+    that: backup_running_legacy_services.stdout | default('') | trim | length == 0
+    fail_msg: "A backup operation is running. Let it finish, then rerun deployment; it will not be stopped."
+    quiet: true
+  when: not backup_existing_job_configs.stat.exists
 
 - name: Install backup dependencies
   ansible.builtin.package:
@@ -74,6 +95,7 @@
     - "{{ backup_state_root }}"
     - "{{ backup_state_root }}/staging"
     - "{{ backup_config_dir }}"
+    - "{{ backup_config_dir }}/jobs"
     - "{{ backup_program_dir }}"
 
 - name: Install backup runner and source adapters
@@ -83,7 +105,7 @@
     owner: root
     group: root
     mode: "0700"
-  loop: [backup_runner.py, backup_sources.py, backup_common.py, backup_manifest.py]
+  loop: [backup_runner.py, backup_sources.py, backup_common.py, backup_manifest.py, backup_runtime.py, backup_direct.py]
 
 - name: Deploy protected backup configuration
   ansible.builtin.template:
@@ -95,15 +117,29 @@
   no_log: true
   diff: false
 
-- name: Validate installed backup configuration
+- name: Deploy protected per-job backup configuration
+  ansible.builtin.template:
+    src: config.json.j2
+    dest: "{{ backup_config_dir }}/jobs/{{ item.key }}.json"
+    owner: root
+    group: root
+    mode: "0600"
+  vars:
+    backup_config_job: "{{ item.key }}"
+  loop: "{{ backup_jobs | dict2items }}"
+  no_log: true
+  diff: false
+
+- name: Validate installed per-job backup configurations
   ansible.builtin.command:
     argv:
       - /usr/bin/python3
       - "{{ backup_program_dir }}/backup_runner.py"
       - --config
-      - "{{ backup_config_dir }}/config.json"
+      - "{{ backup_config_dir }}/jobs/{{ item.key }}.json"
       - validate
-      - "{{ backup_jobs | first }}"
+      - "{{ item.key }}"
+  loop: "{{ backup_jobs | dict2items }}"
   changed_when: false
   when: not ansible_check_mode
 
@@ -123,6 +159,10 @@
   loop_control:
     loop_var: backup_job
 
+- name: Initialize repositories only when explicitly requested
+  ansible.builtin.include_tasks: initialize.yml
+  when: backup_initialize_repositories | bool
+
 - name: Apply backup systemd changes
   ansible.builtin.meta: flush_handlers
 
@@ -131,7 +171,3 @@
   loop: "{{ backup_jobs | dict2items }}"
   loop_control:
     loop_var: backup_job
-
-- name: Initialize repositories only when explicitly requested
-  ansible.builtin.include_tasks: initialize.yml
-  when: backup_initialize_repositories | bool

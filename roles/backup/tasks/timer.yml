@@ -8,3 +8,22 @@
     mode: "0644"
   loop: ['', '-maintenance', '-check']
   notify: Reload backup systemd units
+
+- name: Create per-job service override directories
+  ansible.builtin.file:
+    path: "/etc/systemd/system/homelab-backup{{ item }}@{{ backup_job.key }}.service.d"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop: ['', '-maintenance', '-check']
+
+- name: Deploy bounded per-job operation timeouts
+  ansible.builtin.copy:
+    dest: "/etc/systemd/system/homelab-backup{{ item }}@{{ backup_job.key }}.service.d/timeout.conf"
+    content: "[Service]\nTimeoutStartSec={{ (backup_job.value.timeout | default(6600) | int) + 300 }}\n"
+    owner: root
+    group: root
+    mode: '0644'
+  loop: ['', '-maintenance', '-check']
+  notify: Reload backup systemd units

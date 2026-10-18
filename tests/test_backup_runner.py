@@ -197,6 +197,22 @@ sys.exit(int(os.environ.get('BACKUP_TEST_EXIT', '0')))
                     self.runner.ensure_initialized(self.config, "database")
             self.assertEqual(self.calls(), [["snapshots", "--json"]])
 
+    def test_failed_upload_reports_phase_and_exit_without_raw_errors(self):
+        output=io.StringIO()
+        with patch.dict(os.environ,{'BACKUP_TEST_EXIT':'3','BACKUP_TEST_STDERR':'FAKE-SECRET FAKE-PASSWORD'}), contextlib.redirect_stderr(output):
+            self.assertNotEqual(self.runner.run_job(self.config,'database'),0)
+        self.assertIn('phase=upload',output.getvalue())
+        self.assertIn('restic exit=3',output.getvalue())
+        self.assertNotIn('FAKE-SECRET',output.getvalue())
+        self.assertNotIn('FAKE-PASSWORD',output.getvalue())
+
+    def test_unexpected_exception_reports_phase_without_exception_text(self):
+        output=io.StringIO()
+        with patch.object(self.runner,'prepare_sources',side_effect=ValueError('FAKE-SECRET')),contextlib.redirect_stderr(output):
+            self.assertNotEqual(self.runner.run_job(self.config,'database'),0)
+        self.assertIn('phase=source-export',output.getvalue())
+        self.assertNotIn('FAKE-SECRET',output.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -32,7 +32,7 @@ def source_scope(value):
     return {key: value[key] for key in ("repository", "host", "job", "staging_path", "snapshot")}
 
 
-def validate_artifact(item, source_id, legacy=False):
+def validate_artifact(item, source_id, legacy=False, direct=False):
     if not isinstance(item, dict) or item.get("entry_type") not in ("file", "directory"):
         raise BackupError("invalid artifact record")
     relative = relative_artifact(item.get("relative_path"))
@@ -42,7 +42,7 @@ def validate_artifact(item, source_id, legacy=False):
     if not isinstance(size, int) or isinstance(size, bool) or size < 0:
         raise BackupError("invalid artifact size")
     digest = item.get("sha256")
-    if item["entry_type"] == "file" and not (legacy and digest is None):
+    if item["entry_type"] == "file" and not ((legacy or direct) and digest is None):
         if not isinstance(digest, str) or not re.fullmatch(r"[a-f0-9]{64}", digest):
             raise BackupError("invalid artifact digest")
     return {"source_id": source_id, "relative_path": relative, "entry_type": item["entry_type"], "size": size, "sha256": digest}

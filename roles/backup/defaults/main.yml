@@ -16,3 +16,6 @@ backup_retention:
   weekly: 8
   monthly: 12
 backup_deployment_metadata: {}
+
+# Optionally restrict opt-in initialization to these repository IDs.
+backup_initialize_repository_ids: "{{ backup_repositories | list }}"

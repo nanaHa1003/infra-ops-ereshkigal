@@ -194,7 +194,7 @@ def validate_snapshot_inputs(config,plan,state):
     target={**config['target'],'services':config['services'],'run_id':state['run_id'],'scratch_root':str(scratch),
         'wordpress_core_image':plan['image_variables'].get('wordpress_image')}
     mappings=build_mappings(model,target,config['registry'])
-    validate_artifacts(mappings,scratch)
+    validate_artifacts(mappings,scratch,state.get("restic_verified_snapshot"))
     checks=compare_recovery_secrets(model,scratch,config['secrets'])
     state['results']['secret_checks']=checks
     save_state(state)
@@ -227,6 +227,8 @@ def download(config, plan):
         raise BackupError("pinned source metadata changed")
     scratch.mkdir(mode=0o700, parents=True, exist_ok=True)
     restic(config["repository"], ["restore", selection["snapshot_id"], "--target", str(scratch), "--verify"])
+    state["restic_verified_snapshot"] = selection["snapshot_id"]
+    save_state(state)
     checks=validate_snapshot_inputs(config,plan,state)
     # Reserve only preflight-checked roots before Ansible prepares them.
     guard_running_mounts(state)

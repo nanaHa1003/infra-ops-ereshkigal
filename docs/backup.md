@@ -192,3 +192,125 @@ Review runtime, transferred bytes, B2 billed usage and retained versions after o
 - [SQLite online backup](https://www.sqlite.org/backup.html)
 - [Immich backup and restore](https://docs.immich.app/administration/backup-and-restore/)
 - [Healthchecks scheduling](https://healthchecks.io/docs/configuring_checks/)
+
+## Independent RustFS service backups
+
+The RustFS extension adds two local jobs alongside the existing B2 `database`
+job. It is prepared in code; deployment, production repository initialization,
+first full backups and application-level recovery acceptance are separate steps.
+Hecate and Ereshkigal are at the same location, so local media protection is not
+an off-site media copy. Application upgrades remain out of scope.
+
+| Job | Repository | Schedule (Asia/Taipei) | Monitoring |
+| --- | --- | --- | --- |
+| `database` | Existing B2 `database` | 00/06/12/18:00 | Existing Healthchecks |
+| `rustfs_db` | `homelab-db-config/ereshkigal` | 00/06/12/18:20 | systemd/journal only |
+| `rustfs_files` | `homelab-services/ereshkigal` | Daily 02:00 | systemd/journal only |
+
+Each job owns a protected `/etc/homelab-backup/jobs/<job>.json`, staging tree,
+cache and success marker under `/var/lib/homelab-backup/status/<job>.json`.
+Repository operations lock by normalized URL: different repositories can run
+concurrently; aliases of the same destination cannot concurrently prune/check/
+backup. No job depends on another upload, snapshot or staging directory. A
+failed destination or B2 monitoring call does not stop another job, although
+source host, Docker, disks and network remain shared resources.
+
+Local jobs set `healthchecks_enabled: false`: no Healthchecks URL is required in
+Vault and no ping is sent, including on failure. Observe results using systemd
+and journalctl. A success marker records successful upload, independently of B2
+monitoring delivery. It is not proof of application-level recovery.
+
+`rustfs_db` repeats the common DB/config export independently. `rustfs_files`
+exports its own DBs and archives complete Immich media, WordPress HTML/uploads,
+Authentik media, Mealie attachments, n8n persistent binary data and Pinchflat
+config/downloads. Large roots are read directly; only DB exports/small settings
+enter staging. Live SQLite DB/WAL/SHM/journal files are excluded from direct
+parent trees in favor of the online SQLite export. n8n encryption config and
+Pinchflat extras stay in their existing small staged sources. Aria2 downloads
+and session are excluded from every newly produced job; historical session
+backups remain readable. LANraragi and other unmanaged services are excluded.
+
+A full backup is not an atomic database/media snapshot. A detected source
+mutation, unreadable source or partial Restic read fails only that job and does
+not promote its pending snapshot. Avoid media moves/deletes or application
+configuration changes during backup. Manifest v3 marks directly read content
+as Restic-authenticated rather than claiming live-file hashes describe the
+archived bytes. DB-only snapshots retain schema v2 and existing B2 scope.
+
+During a direct-media run, newly added files and automatic moves also count as
+source mutations. Prefer a quiet window for the first full backup and pause
+client auto-uploads while testing if needed. Normal Mealie root runtime logs
+(`mealie.log` and its rotations) are excluded; recipe attachments remain in scope.
+A rejected capture keeps its `homelab-pending:<job>` snapshot and uploaded chunks,
+but is never offered as a completed recovery point. Do not manually promote that
+snapshot or delete bucket objects. A subsequent quiet retry can reuse uploaded
+chunks; it does not require uploading the entire data set again.
+
+The journal distinguishes upload, source-inventory verification and promotion.
+Failures report a fixed phase and, for source mutation, the source ID plus
+added/removed/modified entry counts. Private filenames, credentials and raw
+subprocess errors remain out of public logs. A successful upload alone does not
+mean source verification or snapshot promotion succeeded.
+
+RustFS uses `http://hecate.netbird.cloud:9000` over NetBird; 9001 is the Console.
+Credentials live at `vault_secrets.backup.repositories.rustfs_db` and
+`rustfs_files`, with independent Restic passwords. Keep private buckets, no
+Object Lock/versioning initially, and no expiration of live repository objects.
+The source host's dedicated RustFS key needs only the two backup buckets, not
+administration permissions. Save repository passwords and Vault recovery
+material independently of both machines.
+
+Local full-data operations allow up to 12 hours; B2 keeps its existing limits.
+Local DB maintenance runs Sunday 03:30, full-data maintenance Sunday 04:30.
+Local rotating-quarter data checks run Sunday 09:00/10:00 respectively. Different
+operations on the same repository serialize through a nonblocking lock: a busy
+maintenance/check reports failure in its journal and can be retried; it never
+prunes during an active backup. Retention is 48h/14 daily/8 weekly/12 monthly for
+DB jobs, and 48h/14 daily/8 weekly/6 monthly for full service data.
+
+### Deployment and first acceptance
+
+If upgrading the old globally locked runner, let existing backup services finish
+before deploying. The migration refuses to stop an active operation. Deploy
+configuration and explicitly initialize only the new RustFS repositories:
+
+```bash
+ANSIBLE_HOST_KEY_CHECKING=True ansible-playbook backup.yml \
+  -e backup_initialize_repositories=true \
+  -e '{"backup_initialize_repository_ids":["rustfs_db","rustfs_files"]}' \
+  --ask-become-pass
+```
+
+Initialization completes before timer activation. For packaging-only testing,
+add `-e backup_timers_enabled=false`; this host-wide override stops B2 timers too,
+so use it only when intentionally scheduling that pause. Normal host deployment
+retains `backup_timers_enabled: true`. Enabling a persistent timer can start a
+missed run; do not assume a manual start is the first run.
+
+On Ereshkigal, inspect each independent job before starting it:
+
+```bash
+systemctl list-timers 'homelab-backup*'
+sudo systemctl start --no-block homelab-backup@rustfs_db.service
+sudo journalctl -fu homelab-backup@rustfs_db.service
+sudo systemctl start --no-block homelab-backup@rustfs_files.service
+sudo journalctl -fu homelab-backup@rustfs_files.service
+```
+
+Ctrl-C stops following logs, not the service. Check the result and snapshots:
+
+```bash
+systemctl show homelab-backup@rustfs_files.service -p ActiveState -p Result -p ExecMainStatus
+sudo /usr/local/libexec/homelab-backup/backup_runner.py snapshots rustfs_files
+sudo /usr/local/libexec/homelab-backup/backup_runner.py check rustfs_files --full
+sudo /usr/local/libexec/homelab-backup/backup_runner.py restore rustfs_files --snapshot latest
+```
+
+The CLI automatically selects a per-job config when present and retains the old
+aggregate-config fallback for existing installations. Recovery restores into a
+new protected scratch directory, never live application paths. For substantial
+scratch restores, verify free space first or use the separate cross-host recovery
+flow with approved storage. Check sample media hashes/openability, SQLite data,
+DB imports and service-specific DB/media references before declaring acceptance.
+The repository smoke test established small-object and Restic compatibility,
+not first production backup success or sustained full-data performance.

@@ -39,6 +39,14 @@ vault_secrets:
     password: "ci-pinchflat-pass"
   backup:
     repositories:
+      rustfs_db:
+        access_key_id: ci-rustfs-key
+        secret_access_key: ci-rustfs-secret
+        restic_password: ci-rustfs-db-password
+      rustfs_files:
+        access_key_id: ci-rustfs-key
+        secret_access_key: ci-rustfs-secret
+        restic_password: ci-rustfs-files-password
       database:
         access_key_id: ci-backup-key-id
         secret_access_key: ci-backup-secret

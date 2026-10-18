@@ -8,7 +8,7 @@
       - "{{ backup_config_dir }}/config.json"
       - ensure-init
       - "{{ item }}"
-  loop: "{{ backup_repositories | list }}"
+  loop: "{{ backup_initialize_repository_ids }}"
   register: backup_repository_initialization
   changed_when: backup_repository_initialization.stdout == 'Repository initialized'
   when: not ansible_check_mode

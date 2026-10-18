@@ -13,13 +13,17 @@ immich_ml_usb_bus: ""
 backup_timers_enabled: true
 
 backup_repositories:
+  rustfs_db:
+    url: "s3:http://hecate.netbird.cloud:9000/homelab-db-config/ereshkigal"
+  rustfs_files:
+    url: "s3:http://hecate.netbird.cloud:9000/homelab-services/ereshkigal"
   database:
     url: "s3:https://s3.us-west-004.backblazeb2.com/homelab-db-snapshots/ereshkigal"
 
 backup_jobs:
   database:
     repository: database
-    service_projects:
+    service_projects: &backup_service_projects
       proxy: proxy
       auth: auth
       wordpress: wordpress
@@ -29,7 +33,7 @@ backup_jobs:
       homepage: homepage
       n8n: n8n
       aria2: aria2
-    sources:
+    sources: &backup_database_sources
       - {id: authentik-db, kind: postgres, container: auth-postgresql-1}
       - {id: n8n-db, kind: postgres, container: n8n-n8n-postgres-1}
       - {id: immich-db, kind: postgres, container: immich_postgres}
@@ -51,10 +55,6 @@ backup_jobs:
       - {id: aria2-script-settings, kind: files, path: "{{ storage_root }}/aria2/config/script.conf"}
       - {id: aria2-file-filter, kind: files, path: "{{ storage_root }}/aria2/config/文件过滤.conf"}
       - {id: aria2-scripts, kind: files, path: "{{ storage_root }}/aria2/config/script"}
-      - id: aria2-session
-        kind: aria2_session
-        path: "{{ storage_root }}/aria2/config/aria2.session"
-        rpc_url: "http://127.0.0.1:6800/jsonrpc"
       - {id: caddy-data, kind: files, path: "{{ storage_root }}/caddy/data"}
       - {id: caddy-config, kind: files, path: "{{ storage_root }}/caddy/config"}
       - {id: caddyfile, kind: files, path: "{{ stack_root }}/proxy/Caddyfile"}
@@ -69,3 +69,45 @@ backup_jobs:
       - {id: homepage-compose, kind: files, path: "{{ stack_root }}/homepage/docker-compose.yml"}
       - {id: n8n-compose, kind: files, path: "{{ stack_root }}/n8n/docker-compose.yml"}
       - {id: aria2-compose, kind: files, path: "{{ stack_root }}/aria2/docker-compose.yml"}
+
+  rustfs_db:
+    repository: rustfs_db
+    healthchecks_enabled: false
+    schedule: "*-*-* 00,06,12,18:20:00 Asia/Taipei"
+    maintenance_schedule: "Sun *-*-* 03:30:00 Asia/Taipei"
+    check_schedule: "Sun *-*-* 09:00:00 Asia/Taipei"
+    service_projects: *backup_service_projects
+    sources: *backup_database_sources
+
+  rustfs_files:
+    repository: rustfs_files
+    healthchecks_enabled: false
+    timeout: 43200
+    schedule: "*-*-* 02:00:00 Asia/Taipei"
+    maintenance_schedule: "Sun *-*-* 04:30:00 Asia/Taipei"
+    check_schedule: "Sun *-*-* 10:00:00 Asia/Taipei"
+    retention: {within: 48h, daily: 14, weekly: 8, monthly: 6}
+    excluded: [aria2_downloads, aria2_session, raw_database_volumes, ml_cache, unmanaged_services]
+    service_projects: *backup_service_projects
+    sources: *backup_database_sources
+    exclude_source_ids: [wordpress-config, wordpress-themes, wordpress-plugins, wordpress-mu-plugins, wordpress-htaccess]
+    extra_sources:
+      - {id: authentik-media, kind: files, capture: direct, path: "{{ storage_root }}/authentik/media"}
+      - {id: wordpress-html, kind: files, capture: direct, path: "{{ storage_root }}/wordpress/html"}
+      - {id: immich-media, kind: files, capture: direct, path: "{{ storage_root }}/immich/library"}
+      - id: mealie-data
+        kind: files
+        capture: direct
+        path: "{{ storage_root }}/mealie/data"
+        exclude: [mealie.db, mealie.db-wal, mealie.db-shm, mealie.db-journal, mealie.log, mealie.log.*, logs, cache]
+      - id: n8n-data
+        kind: files
+        capture: direct
+        path: "{{ storage_root }}/n8n/data"
+        exclude: [config, database.sqlite, database.sqlite-wal, database.sqlite-shm, database.sqlite-journal, "n8nEventLog*.log", logs, cache]
+      - id: pinchflat-config
+        kind: files
+        capture: direct
+        path: "{{ storage_root }}/pinchflat/config"
+        exclude: [db, extras, logs, cache, tmp]
+      - {id: pinchflat-downloads, kind: files, capture: direct, path: "{{ storage_root }}/pinchflat/downloads"}
