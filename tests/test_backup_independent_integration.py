@@ -1,5 +1,5 @@
 """Real disposable Restic snapshots prove isolation and direct-media recoverability."""
-import copy,hashlib,importlib,json,os,shutil,sqlite3,subprocess,sys,tempfile,unittest
+import contextlib,copy,hashlib,importlib,io,json,os,shutil,sqlite3,subprocess,sys,tempfile,unittest
 from pathlib import Path
 from unittest.mock import patch
 ROOT=Path(__file__).resolve().parents[1]
@@ -70,3 +70,21 @@ class IndependentRoundTrips(unittest.TestCase):
         with patch.object(self.runner.urllib.request,'urlopen',side_effect=OSError('offline')):
             self.assertEqual(self.runner.run_job(self.cfg,'database'),2)
             self.assertEqual(self.runner.run_job(self.cfg,'media'),0)
+
+    def test_changed_media_stays_pending_then_quiet_retry_completes(self):
+        transport=self.runner.restic
+        def mutate_after_upload(repo,args,**kwargs):
+            result=transport(repo,args,**kwargs)
+            if args[0]=='backup':(self.media/'photo.jpg').write_bytes(b'updated after upload')
+            return result
+        output=io.StringIO()
+        with patch.object(self.runner,'restic',side_effect=mutate_after_upload),contextlib.redirect_stderr(output):
+            self.assertEqual(self.runner.run_job(self.cfg,'media'),1)
+        self.assertIn('phase=source-verification',output.getvalue())
+        self.assertIn('source=mealie-data',output.getvalue())
+        self.assertFalse((self.root/'state/status/media.json').exists())
+        snapshots=json.loads(transport(self.cfg['repositories']['media'],['snapshots','--json'],capture=True))
+        self.assertEqual(len(snapshots),1)
+        self.assertIn('homelab-pending:media',snapshots[0]['tags'])
+        self.assertEqual(self.runner.run_job(self.cfg,'media'),0)
+        self.assertEqual(len(self.runner.snapshots(self.cfg,'media')),1)

@@ -237,6 +237,21 @@ configuration changes during backup. Manifest v3 marks directly read content
 as Restic-authenticated rather than claiming live-file hashes describe the
 archived bytes. DB-only snapshots retain schema v2 and existing B2 scope.
 
+During a direct-media run, newly added files and automatic moves also count as
+source mutations. Prefer a quiet window for the first full backup and pause
+client auto-uploads while testing if needed. Normal Mealie root runtime logs
+(`mealie.log` and its rotations) are excluded; recipe attachments remain in scope.
+A rejected capture keeps its `homelab-pending:<job>` snapshot and uploaded chunks,
+but is never offered as a completed recovery point. Do not manually promote that
+snapshot or delete bucket objects. A subsequent quiet retry can reuse uploaded
+chunks; it does not require uploading the entire data set again.
+
+The journal distinguishes upload, source-inventory verification and promotion.
+Failures report a fixed phase and, for source mutation, the source ID plus
+added/removed/modified entry counts. Private filenames, credentials and raw
+subprocess errors remain out of public logs. A successful upload alone does not
+mean source verification or snapshot promotion succeeded.
+
 RustFS uses `http://hecate.netbird.cloud:9000` over NetBird; 9001 is the Console.
 Credentials live at `vault_secrets.backup.repositories.rustfs_db` and
 `rustfs_files`, with independent Restic passwords. Keep private buckets, no

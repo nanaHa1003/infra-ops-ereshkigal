@@ -42,3 +42,11 @@ class LocalConfiguration(unittest.TestCase):
         self.assertIn('/jobs/%i.json',rendered)
         self.assertIn('/cache/%i',rendered)
         self.assertNotIn('Requires=homelab-backup',rendered)
+
+    def test_mealie_root_runtime_logs_are_excluded_but_attachments_remain(self):
+        import fnmatch
+        sources={source['id']:source for source in self.config()['jobs']['rustfs_files']['sources']}
+        patterns=sources['mealie-data']['exclude']
+        for path in ('mealie.log','mealie.log.1','mealie.log.2.gz'):
+            self.assertTrue(any(fnmatch.fnmatchcase(path,pattern) for pattern in patterns),path)
+        self.assertFalse(any(fnmatch.fnmatchcase('recipes/mealie.log',pattern) for pattern in patterns))

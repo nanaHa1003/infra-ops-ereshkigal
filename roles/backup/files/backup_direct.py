@@ -6,6 +6,18 @@ import stat
 from backup_common import BackupError, checked_path, safe_id
 
 
+class DirectSourceChanged(BackupError):
+    """Report a validated source ID and counts, never private filenames."""
+    def __init__(self, identifier, before, after):
+        old = before.get('fingerprint') or {}
+        new = after.get('fingerprint') or {}
+        added = len(new.keys() - old.keys())
+        removed = len(old.keys() - new.keys())
+        modified = sum(old[key] != new[key] for key in old.keys() & new.keys())
+        super().__init__('direct source changed during backup: source=' + safe_id(identifier) +
+                         f' added={added} removed={removed} modified={modified}')
+
+
 def exclusion_patterns(source):
     patterns=source.get('exclude', [])
     if not isinstance(patterns,list) or any(not isinstance(p,str) or not p or p.startswith('/') or '..' in Path(p).parts or any(c in p for c in '\n\r\0\\') for p in patterns):
@@ -45,7 +57,7 @@ def verify_direct(sources, exports):
         if source.get('capture')=='direct':
             before=exports[source['id']];after=scan_direct(source)
             if before.get('fingerprint')!=after.get('fingerprint') or before.get('optional_absent')!=after.get('optional_absent'):
-                raise BackupError('direct source changed during backup')
+                raise DirectSourceChanged(source['id'], before, after)
 
 
 def direct_arguments(sources, exports):

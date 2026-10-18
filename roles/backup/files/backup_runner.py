@@ -19,7 +19,7 @@ from backup_common import BackupError, ResticError, checked_path, restic, safe_i
 from backup_sources import prepare_sources
 from backup_manifest import build_manifest
 from backup_runtime import scoped_config, repository_identity
-from backup_direct import direct_arguments, verify_direct
+from backup_direct import DirectSourceChanged, direct_arguments, verify_direct
 
 
 def validate_config(config):
@@ -117,9 +117,11 @@ def run_job(config, job_id):
     job = None
     stage = None
     locked = False
+    phase = "configuration"
     try:
         config = scoped_config(config, job_id)
         safe_id(job_id)
+        phase = "lock"
         with repository_lock(config) as state:
             locked = True
             job = config["jobs"][job_id]
@@ -131,23 +133,33 @@ def run_job(config, job_id):
                 cache.mkdir(mode=0o700, parents=True, exist_ok=True)
                 config["repositories"][job["repository"]]["cache_dir"] = str(cache)
                 delivered = notify(job, "start")
+                phase = "source-export"
                 metadata = prepare_sources(job["sources"], stage)
+                phase = "manifest"
                 (stage / "manifest.json").write_text(json.dumps(
                     build_manifest(stage, {**config, "job_id": job_id}, metadata), indent=2))
                 repo = config["repositories"][job["repository"]]
                 options, roots = direct_arguments(job["sources"], metadata)
+                phase = "upload"
+                print("Uploading snapshot", flush=True)
                 result = restic(repo, ["backup", "--json", "--host", config["host"],
                                       "--tag", "homelab-pending:" + job_id, *options, str(stage) if roots else ".", *roots], cwd=stage, capture=True)
+                phase = "summary"
                 summaries = [json.loads(line) for line in result.splitlines()]
                 snapshot = next(item["snapshot_id"] for item in summaries if item.get("message_type") == "summary")
                 if not re.fullmatch(r"[a-f0-9]{8,64}", snapshot):
                     raise BackupError("invalid backup summary")
+                phase = "source-verification"
+                print("Verifying source inventories", flush=True)
                 verify_direct(job["sources"], metadata)
+                phase = "promotion"
+                print("Promoting verified snapshot", flush=True)
                 restic(repo, ["tag", "--add", "homelab-config-db:" + job_id,
                               "--remove", "homelab-pending:" + job_id, snapshot])
             finally:
                 if stage.exists():
                     shutil.rmtree(stage)
+            phase = "success-record"
             status = checked_path(str(state / "status"))
             status.mkdir(mode=0o700, exist_ok=True)
             record = status / (job_id + ".json")
@@ -158,8 +170,13 @@ def run_job(config, job_id):
             delivered = notify(job, "success") and delivered
             print("Backup uploaded" if delivered else "Backup uploaded; monitoring delivery failed")
             return 0 if delivered else 2
-    except Exception:
-        print("Backup failed; inspect source availability, credentials and service status", file=sys.stderr)
+    except Exception as error:
+        detail = "operation failed; inspect source availability, credentials and service status"
+        if isinstance(error, DirectSourceChanged):
+            detail = str(error)
+        elif isinstance(error, ResticError) and isinstance(error.returncode, int):
+            detail = "restic exit=" + str(error.returncode)
+        print("Backup failed: phase=" + phase + "; " + detail, file=sys.stderr)
         if locked and job:
             notify(job, "fail")
         return 1

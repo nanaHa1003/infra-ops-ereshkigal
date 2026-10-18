@@ -46,3 +46,15 @@ class DirectCapture(unittest.TestCase):
         self.source['path']=str(self.root/'absent')
         with self.assertRaises(self.sources.BackupError):self.prepare()
         self.source['optional']=True;self.assertTrue(self.prepare()['media']['optional_absent'])
+
+    def test_mutation_reports_source_and_counts_without_filenames(self):
+        exports=self.prepare()
+        (self.media/'private-photo-name.jpg').write_bytes(b'new')
+        (self.media/'photo.jpg').unlink()
+        direct=importlib.import_module('backup_direct')
+        with self.assertRaises(self.sources.BackupError) as raised:
+            direct.verify_direct([self.source],exports)
+        message=str(raised.exception)
+        self.assertIn('source=media',message)
+        self.assertIn('added=1',message);self.assertIn('removed=1',message)
+        self.assertNotIn('private-photo-name',message)

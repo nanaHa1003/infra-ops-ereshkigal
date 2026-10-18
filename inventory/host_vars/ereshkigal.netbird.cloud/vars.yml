@@ -99,7 +99,7 @@ backup_jobs:
         kind: files
         capture: direct
         path: "{{ storage_root }}/mealie/data"
-        exclude: [mealie.db, mealie.db-wal, mealie.db-shm, mealie.db-journal, logs, cache]
+        exclude: [mealie.db, mealie.db-wal, mealie.db-shm, mealie.db-journal, mealie.log, mealie.log.*, logs, cache]
       - id: n8n-data
         kind: files
         capture: direct
