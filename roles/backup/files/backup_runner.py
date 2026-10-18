@@ -266,7 +266,7 @@ def restore_job(config, job_id, snapshot):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", default="/etc/homelab-backup/config.json")
+    parser.add_argument("--config", default=None)
     parser.add_argument("operation", choices=["validate", "backup", "init", "ensure-init", "maintenance", "retention-preview", "check", "snapshots", "restore"])
     parser.add_argument("identifier")
     parser.add_argument("--full", action="store_true", help="Read all repository data during check")
@@ -279,7 +279,8 @@ def main():
     signal.signal(signal.SIGALRM, interrupted)
     signal.alarm(6600)
     try:
-        config_path = checked_path(args.config)
+        default_config = Path("/etc/homelab-backup/jobs") / (safe_id(args.identifier) + ".json")
+        config_path = checked_path(args.config or (str(default_config) if default_config.exists() else "/etc/homelab-backup/config.json"))
         if config_path.stat().st_mode & 0o077:
             raise BackupError("configuration permissions must be root-only")
         config = json.loads(config_path.read_text())

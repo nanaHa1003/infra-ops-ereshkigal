@@ -1,22 +1,27 @@
+{% set selected_jobs = {backup_config_job: backup_jobs[backup_config_job]} if backup_config_job is defined else backup_jobs %}
+{% set selected_repositories = {backup_jobs[backup_config_job].repository: backup_repositories[backup_jobs[backup_config_job].repository]} if backup_config_job is defined else backup_repositories %}
 {
   "state_root": {{ backup_state_root | to_json }},
   "host": {{ inventory_hostname | to_json }},
   "domain": {{ domain | default(none) | to_json }},
   "deployment": {{ backup_deployment_metadata | to_json }},
   "repositories": {
-{% for name, repository in backup_repositories.items() %}
+{% for name, repository in selected_repositories.items() %}
     {{ name | to_json }}: {{ repository | combine(vault_secrets.backup.repositories[name]) | to_json }}{{ ',' if not loop.last else '' }}
 {% endfor %}
   },
   "jobs": {
-{% for name, job in backup_jobs.items() %}
+{% for name, job in selected_jobs.items() %}
     {{ name | to_json }}: {
       "repository": {{ job.repository | to_json }},
-      "healthchecks_ping_url": {{ vault_secrets.backup.jobs[name].healthchecks_ping_url | to_json }},
+      "healthchecks_enabled": {{ job.healthchecks_enabled | default(true) | to_json }},
+      "healthchecks_ping_url": {{ (vault_secrets.backup.jobs[name].healthchecks_ping_url if job.healthchecks_enabled | default(true) else "") | to_json }},
+      "timeout": {{ job.timeout | default(6600) | to_json }},
+      "excluded": {{ job.excluded | default(['photos', 'videos', 'downloads', 'attachments', 'raw_database_volumes']) | to_json }},
       "retention": {{ job.retention | default(backup_retention) | to_json }},
       "service_projects": {{ job.service_projects | default({}) | to_json }},
       "sources": [
-{% for source in job.sources %}
+{% for source in (job.sources | rejectattr('id', 'in', job.exclude_source_ids | default([])) | list) + job.extra_sources | default([]) %}
         {{ (source | combine({'rpc_secret': vault_secrets.aria2.rpc_secret}) if source.kind == 'aria2_session' else source) | to_json }}{{ ',' if not loop.last else '' }}
 {% endfor %}
       ]

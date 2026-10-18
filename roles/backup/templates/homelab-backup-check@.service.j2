@@ -9,8 +9,8 @@ User=root
 UMask=0077
 Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
 Environment=TZ=Asia/Taipei
-Environment=RESTIC_CACHE_DIR={{ backup_state_root }}/cache
-ExecStart=/usr/bin/python3 {{ backup_program_dir }}/backup_runner.py --config {{ backup_config_dir }}/config.json check %i
+Environment=RESTIC_CACHE_DIR={{ backup_state_root }}/cache/%i
+ExecStart=/usr/bin/python3 {{ backup_program_dir }}/backup_runner.py --config {{ backup_config_dir }}/jobs/%i.json check %i
 TimeoutStartSec=115min
 KillMode=control-group
 Nice=10

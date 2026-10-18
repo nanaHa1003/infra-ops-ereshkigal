@@ -1,5 +1,5 @@
 [Unit]
-Description=Six-hour backup schedule for {{ backup_job.key }}
+Description=Backup schedule for {{ backup_job.key }}
 
 [Timer]
 OnCalendar={{ backup_job.value.schedule | default(backup_schedule) }}
