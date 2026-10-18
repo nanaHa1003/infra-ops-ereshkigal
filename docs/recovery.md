@@ -94,3 +94,29 @@ ansible-playbook recover.yml -i inventory/recovery.ini --limit replacement \
 ## 主機可攜性（2026-10-16修訂）
 
 復原依能力檢查，不使用 Fedora／版本號白名單；distribution/release 只保留為 plan 的環境紀錄。執行時仍核對 machine-id、Linux 與目標 CPU 架構。只要前述能力與 POSIX 權限／Docker bind-mount 語意成立，Debian、Ubuntu 或 WSL2 不因名稱被拒絕；這不等於已在所有平台完成實機驗證。WSL2 優先使用 Linux 檔案系統；使用 Docker Desktop 時必須確認 daemon 可存取相同目標路徑，不能只憑 CLI 能連線判定相容。WSL2 沒有 systemd 時不要求 systemd；有運作中的 systemd 時，timer 查詢失敗仍會阻擋。備份排程與選用 DDNS 是另外的主機整合，不由這項可攜性修訂保證。跨架構的替代 image 對應尚未實作，來源 image 與目標架構仍須符合；同架構 ARM image 不再被 x86 白名單拒絕。
+
+## RustFS full-service snapshots (manifest v3)
+
+The source repository/job can be `rustfs_files` on Hecate instead of B2. Use the
+matching source host, job and `/var/lib/homelab-backup/staging/rustfs_files` scope
+in the explicit recovery profile. Keep credentials under the matching repository
+ID in Vault. `recover.yml` stays separate from normal deployment.
+
+v1/v2 database/configuration snapshots remain supported. v3 snapshots additionally
+contain direct media roots at their original snapshot paths. The recovery model
+maps these bytes into approved replacement storage roots; original source paths
+never select replacement destinations. The manifest is selected at the scoped
+staging path so an application's own `manifest.json` cannot be mistaken for it.
+
+Staged DB/config artifacts retain explicit SHA-256 hashes. Direct content is
+verified by Restic during scratch restore; installation requires a successful
+`restore --verify` for the exact pinned snapshot. Full WordPress HTML replaces
+narrower WordPress file mappings. Approved directory ancestors can coexist with
+separately exported SQLite databases, but file collisions, traversal and symlink
+escapes remain forbidden. Aria2 session state is optional for historical backups
+and absent from newly produced jobs.
+
+Data restoration and application acceptance remain separate. Media-reference
+checks and explicit activation evidence are still required before starting an
+application; having files in a v3 snapshot does not by itself prove Immich or
+another service has a complete, coherent library.

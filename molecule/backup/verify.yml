@@ -9,11 +9,14 @@
       loop:
         - /etc/homelab-backup
         - /etc/homelab-backup/config.json
+        - /etc/homelab-backup/jobs/database.json
         - /var/lib/homelab-backup
         - /usr/local/libexec/homelab-backup/backup_runner.py
         - /usr/local/libexec/homelab-backup/backup_sources.py
         - /usr/local/libexec/homelab-backup/backup_common.py
         - /usr/local/libexec/homelab-backup/backup_manifest.py
+        - /usr/local/libexec/homelab-backup/backup_direct.py
+        - /usr/local/libexec/homelab-backup/backup_runtime.py
       register: backup_file_metadata
 
     - name: Assert root-only backup permissions

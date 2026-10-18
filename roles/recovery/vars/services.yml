@@ -141,11 +141,11 @@ recovery_service_registry:
         mode: '0600'
         required: false
         replaces:
-        - wordpress-config
-        - wordpress-themes
-        - wordpress-plugins
-        - wordpress-mu-plugins
-        - wordpress-htaccess
+          - wordpress-config
+          - wordpress-themes
+          - wordpress-plugins
+          - wordpress-mu-plugins
+          - wordpress-htaccess
     storage_prefix: wordpress
   pinchflat:
     sources:

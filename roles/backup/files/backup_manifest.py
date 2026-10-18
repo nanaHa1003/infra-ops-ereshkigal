@@ -95,4 +95,4 @@ def build_manifest(stage: Path, config: dict, exports: dict) -> dict:
     return {"schema_version": 3 if direct else 2, "completed_exports_at": datetime.now(timezone.utc).isoformat(),
             "host": config["host"], "job": job_id, "domain": config.get("domain"), "deployment": deployment,
             "sources": sources, "images": images, "limitations": limitations,
-            "excluded": job.get("excluded", ["photos", "videos", "downloads", "attachments", "raw_database_volumes"])}
+            "excluded": job.get("excluded", ["raw_database_volumes"] if direct else ["photos", "videos", "downloads", "attachments", "raw_database_volumes"])}

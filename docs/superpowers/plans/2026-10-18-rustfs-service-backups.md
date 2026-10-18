@@ -28,37 +28,37 @@
 
 Files: `roles/backup/files/backup_runner.py`, new `backup_runtime.py`, `backup_common.py`, `tests/test_backup_isolation.py`.
 Interfaces: `scoped_config(config, job_id) -> dict`, `repository_lock(config, repository_id=None) -> contextmanager`, `load_config(path, operation, identifier) -> dict`; runner public functions keep signatures.
-- [ ] Add tests for failed unrelated credentials/sources, URL aliases and independent locks, disabled monitoring with a stale URL, per-job cache and success state.
-- [ ] Run failing tests, implement selected-config validation, URL-based locks, scoped caches and no-op notification.
-- [ ] Preserve legacy CLI and timing defaults; add bounded operation timeouts and process-group termination in the Restic transport.
-- [ ] Run backup unit tests and commit.
+- [x] Add tests for failed unrelated credentials/sources, URL aliases and independent locks, disabled monitoring with a stale URL, per-job cache and success state.
+- [x] Run failing tests, implement selected-config validation, URL-based locks, scoped caches and no-op notification.
+- [x] Preserve legacy CLI and timing defaults; add bounded operation timeouts and process-group termination in the Restic transport.
+- [x] Run backup unit tests and commit.
 
 ## Task 2: Direct media capture and v3 manifests
 
 Files: new `roles/backup/files/backup_direct.py`, `backup_sources.py`, `backup_manifest.py`, `backup_runner.py`, `tests/test_backup_direct.py`.
 Interfaces: `scan_direct(source) -> dict`, `prepare_direct(sources) -> dict`, `verify_direct(sources, inventories) -> None`; direct files use existing `kind=files` with `capture=direct`.
-- [ ] Add failing tests for no staging copy, traversal/symlink rejection, exclusions, missing/optional roots, live SQLite exclusion and mutation detection.
-- [ ] Archive staged exports plus absolute direct roots in one Restic snapshot; derive v3 manifests only when direct capture is present. Keep v2 hashes unchanged.
-- [ ] Promote pending snapshot only after unchanged-source verification; return failure on partial read.
-- [ ] Run direct/manifest/runner tests and commit.
+- [x] Add failing tests for no staging copy, traversal/symlink rejection, exclusions, missing/optional roots, live SQLite exclusion and mutation detection.
+- [x] Archive staged exports plus absolute direct roots in one Restic snapshot; derive v3 manifests only when direct capture is present. Keep v2 hashes unchanged.
+- [x] Promote pending snapshot only after unchanged-source verification; return failure on partial read.
+- [x] Run direct/manifest/runner tests and commit.
 
 ## Task 3: Ansible jobs and service inventory
 
 Files: backup tasks/templates/defaults, host vars, CI Vault stub, Molecule backup fixtures, `tests/test_backup_ansible.py`.
-- [ ] Add failing render tests for local configs without monitoring secrets, per-job services/config paths, explicit init selection and exact source coverage/exclusions.
-- [ ] Deploy protected per-job configs and per-job timeout overrides. Preserve aggregate config for legacy CLI; selected runtime must isolate other jobs.
-- [ ] Add three independent jobs/schedules/retention. Reuse source lists without recursive inventory-template expansion.
-- [ ] Prevent migration while old service processes are active, without stopping them; initialize only selected repositories when opted in.
-- [ ] Run Ansible render/contract tests, lint and syntax checks; commit.
+- [x] Add failing render tests for local configs without monitoring secrets, per-job services/config paths, explicit init selection and exact source coverage/exclusions.
+- [x] Deploy protected per-job configs and per-job timeout overrides. Preserve aggregate config for legacy CLI; selected runtime must isolate other jobs.
+- [x] Add three independent jobs/schedules/retention. Reuse source lists without recursive inventory-template expansion.
+- [x] Prevent migration while old service processes are active, without stopping them; initialize only selected repositories when opted in.
+- [x] Run Ansible render/contract tests, lint and syntax checks; commit.
 
 ## Task 4: Backward-compatible direct artifact recovery
 
 Files: recovery manifest/models/files/verify/registry, `tests/test_recovery_direct.py`.
-- [ ] Add failing v3 normalization/path/hash-policy/mapping tests plus legacy fixture checks.
-- [ ] Accept v3 direct roots with explicit source-ID-relative paths; no target path comes from a snapshot root. Null hashes allowed only for validated direct v3 records, and only after verified Restic restore.
-- [ ] Resolve full WordPress source replacements and n8n key preservation; permit approved directory ancestors of excluded live SQLite paths without permitting file collisions.
-- [ ] Add media source mappings; Aria2 session optional. Keep media activation evidence conservative.
-- [ ] Run recovery suite and commit.
+- [x] Add failing v3 normalization/path/hash-policy/mapping tests plus legacy fixture checks.
+- [x] Accept v3 direct roots with explicit source-ID-relative paths; no target path comes from a snapshot root. Null hashes allowed only for validated direct v3 records, and only after verified Restic restore.
+- [x] Resolve full WordPress source replacements and n8n key preservation; permit approved directory ancestors of excluded live SQLite paths without permitting file collisions.
+- [x] Add media source mappings; Aria2 session optional. Keep media activation evidence conservative.
+- [x] Run recovery suite and commit.
 
 ## Task 5: Real round trips, failure/concurrency acceptance and documentation
 
@@ -77,3 +77,7 @@ Task 1: runtime isolation RED→GREEN; backup suite 41 tests passed (1 integrati
 Task 2: direct-source and manifest RED→GREEN; 46 backup tests passed (1 real-Restic test unavailable locally). Direct roots are directories, with staged files remaining the existing safe-copy path. No media copies or synthetic hashes are created.
 Task 3: production render tests RED→GREEN; 50 backup tests passed (1 integration skip), backup role lint and backup.yml syntax check passed. Ruling: use `extra_sources` and `exclude_source_ids` when rendering the full job, preserving YAML anchors for the common allowlist; retain staged n8n key/Pinchflat extras and explicitly exclude those paths from their direct parents to avoid duplicate file recovery mappings.
 Task 4: v3 recovery RED→GREEN; full existing suite 173 tests passed (10 environment-dependent skips). Ruling: use absolute staging path when direct roots are present so the authoritative manifest has an unambiguous snapshot path; retain the legacy single-root manifest discovery fallback for old backups. Direct null-hash artifacts require the exact pinned snapshot's successful `restore --verify` marker before installation.
+
+Task 5: real Restic integration 4/4 passed after anchoring exclusions to the source root (nested files with DB-like names remain protected). Fresh full suite: 178 tests passed, 6 Docker-dependent skips; no local Docker client is installed. CI-style isolated lint and syntax validation uses only committed synthetic secrets. Independent whole-branch review requested before finishing.
+Ruling: new jobs take a shared legacy-lock gate in addition to their URL lock; this preserves parallelism between new destinations while safely refusing overlap with an already-running old exclusive-lock runner. Migration gate RED→GREEN.
+Ruling: success metadata records completion time/job rather than the pre-promotion snapshot ID, because Restic retagging may replace that ID.

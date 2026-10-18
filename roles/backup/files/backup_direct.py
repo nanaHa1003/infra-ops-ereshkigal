@@ -21,7 +21,7 @@ def scan_direct(source):
     if not root.is_dir():raise BackupError('direct source must be a directory')
     artifacts=[];fingerprint={}
     def excluded(relative):
-        return any(fnmatch.fnmatch(relative,p) or fnmatch.fnmatch(Path(relative).name,p) for p in patterns)
+        return any(fnmatch.fnmatchcase(relative,p) for p in patterns)
     def add(path):
         checked_path(str(path));info=path.stat(follow_symlinks=False);relative=path.relative_to(root).as_posix()
         if not stat.S_ISREG(info.st_mode) and not stat.S_ISDIR(info.st_mode):
@@ -56,5 +56,5 @@ def direct_arguments(sources, exports):
         for pattern in exclusion_patterns(source):
             # Restic literal roots are escaped so glob characters in paths cannot widen exclusions.
             escaped=''.join('['+c+']' if c in '*?[' else c for c in root)
-            options+=['--exclude='+escaped+'/'+pattern,'--exclude='+escaped+'/**/'+pattern]
+            options.append('--exclude='+escaped+'/'+pattern)
     return options,roots

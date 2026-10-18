@@ -77,9 +77,13 @@ def repository_lock(config, repository_id=None):
     lockdir = checked_path(str(state / "locks"))
     lockdir.mkdir(mode=0o700, exist_ok=True)
     lockpath = checked_path(str(lockdir / (identity + ".lock")))
-    with lockpath.open("a") as lock:
+    legacy_path = checked_path(str(state / "repository.lock"))
+    with legacy_path.open("a") as legacy, lockpath.open("a") as lock:
+        legacy_path.chmod(0o600)
         lockpath.chmod(0o600)
         try:
+            # New jobs share this gate; only a still-running old exclusive holder blocks it.
+            fcntl.flock(legacy, fcntl.LOCK_SH | fcntl.LOCK_NB)
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError as exc:
             raise BackupError("another backup operation is running") from exc
@@ -148,7 +152,7 @@ def run_job(config, job_id):
             status.mkdir(mode=0o700, exist_ok=True)
             record = status / (job_id + ".json")
             pending = status / (job_id + ".json.tmp")
-            pending.write_text(json.dumps({"job": job_id, "snapshot": snapshot, "last_success": datetime.now(timezone.utc).isoformat()}))
+            pending.write_text(json.dumps({"job": job_id, "last_success": datetime.now(timezone.utc).isoformat()}))
             pending.chmod(0o600)
             pending.replace(record)
             delivered = notify(job, "success") and delivered

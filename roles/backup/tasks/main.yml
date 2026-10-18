@@ -159,6 +159,10 @@
   loop_control:
     loop_var: backup_job
 
+- name: Initialize repositories only when explicitly requested
+  ansible.builtin.include_tasks: initialize.yml
+  when: backup_initialize_repositories | bool
+
 - name: Apply backup systemd changes
   ansible.builtin.meta: flush_handlers
 
@@ -167,7 +171,3 @@
   loop: "{{ backup_jobs | dict2items }}"
   loop_control:
     loop_var: backup_job
-
-- name: Initialize repositories only when explicitly requested
-  ansible.builtin.include_tasks: initialize.yml
-  when: backup_initialize_repositories | bool

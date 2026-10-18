@@ -99,12 +99,12 @@ backup_jobs:
         kind: files
         capture: direct
         path: "{{ storage_root }}/mealie/data"
-        exclude: [mealie.db, mealie.db-wal, mealie.db-shm, logs, cache]
+        exclude: [mealie.db, mealie.db-wal, mealie.db-shm, mealie.db-journal, logs, cache]
       - id: n8n-data
         kind: files
         capture: direct
         path: "{{ storage_root }}/n8n/data"
-        exclude: [config, database.sqlite, database.sqlite-wal, database.sqlite-shm, "n8nEventLog*.log", logs, cache]
+        exclude: [config, database.sqlite, database.sqlite-wal, database.sqlite-shm, database.sqlite-journal, "n8nEventLog*.log", logs, cache]
       - id: pinchflat-config
         kind: files
         capture: direct

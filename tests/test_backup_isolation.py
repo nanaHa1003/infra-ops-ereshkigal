@@ -1,5 +1,6 @@
 """Independent destinations must not share validation, locks or monitoring failures."""
 import copy
+import fcntl
 import json
 import unittest
 from unittest.mock import patch
@@ -38,3 +39,9 @@ class IndependentJobs(unittest.TestCase):
         state=self.root/'state/status/database.json'
         self.assertEqual(json.loads(state.read_text())['job'], 'database')
         self.assertFalse((self.root/'state/status/local.json').exists())
+
+    def test_legacy_exclusive_lock_is_respected_during_migration(self):
+        state=self.root/'state';state.mkdir()
+        with (state/'repository.lock').open('a') as legacy:
+            fcntl.flock(legacy,fcntl.LOCK_EX|fcntl.LOCK_NB)
+            self.assertNotEqual(self.runner.run_job(self.config,'database'),0)
