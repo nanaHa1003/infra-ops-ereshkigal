@@ -28,6 +28,9 @@ def select_snapshot(repo: dict, scope: dict) -> dict:
     selected = candidates[0]
     nodes = [json.loads(line) for line in restic(repo, ["ls", "--json", selected["id"]], capture=True).splitlines() if line.strip()]
     manifests = [node["path"] for node in nodes if node.get("type") == "file" and PurePosixPath(node.get("path", "")).name == "manifest.json"]
+    expected = str(PurePosixPath(scope["staging_path"]) / "manifest.json")
+    if len(selected.get("paths", [])) > 1:
+        manifests = [path for path in manifests if path == expected]
     if len(manifests) != 1:
         raise BackupError("snapshot must contain one recovery manifest")
     manifest = PurePosixPath(manifests[0])
@@ -35,7 +38,7 @@ def select_snapshot(repo: dict, scope: dict) -> dict:
         raise BackupError("invalid snapshot tree path")
     return {"snapshot_id": selected["id"], "host": scope["host"], "job": scope["job"],
             "staging_path": scope["staging_path"], "snapshot_time": selected["time"],
-            "tree_root": str(manifest.parent), "manifest_path": str(manifest)}
+            "tree_root": str(manifest.parent), "manifest_path": str(manifest), "snapshot_paths": list(selected["paths"])}
 
 
 def read_compose_fields(content: str) -> dict:
@@ -66,7 +69,7 @@ def read_compose_fields(content: str) -> dict:
 
 
 def normalize_manifest(raw: dict, selection: dict, legacy_profile: dict) -> dict:
-    if not isinstance(raw, dict) or raw.get("schema_version", 1) not in (1, 2):
+    if not isinstance(raw, dict) or raw.get("schema_version", 1) not in (1, 2, 3):
         raise BackupError("unsupported manifest schema")
     legacy = raw.get("schema_version", 1) == 1
     if not isinstance(raw.get("sources"), dict) or not raw["sources"]:
@@ -93,7 +96,17 @@ def normalize_manifest(raw: dict, selection: dict, legacy_profile: dict) -> dict
                 {"relative_path": relative, "entry_type": entry_type, "size": definition.get("size", 0), "sha256": None}])
         if value.get("kind") not in KINDS or not isinstance(value.get("artifacts"), list):
             raise BackupError("invalid source kind or artifacts")
-        artifacts = [validate_artifact(item, identifier, legacy) for item in value["artifacts"]]
+        direct = value.get("capture") == "direct"
+        if direct and (raw.get("schema_version") != 3 or value.get("kind") != "files"):
+            raise BackupError("direct capture requires v3 file metadata")
+        if direct and not value.get("optional_absent"):
+            root = value.get("snapshot_root")
+            if (not isinstance(root, str) or not root.startswith("/") or len(PurePosixPath(root).parts) < 3
+                    or ".." in PurePosixPath(root).parts or any(c in root for c in "\0\n\r\\")
+                    or root != value.get("source_path") or root not in selection.get("snapshot_paths", [])
+                    or value.get("verification", {}).get("status") != "restic_authenticated_content"):
+                raise BackupError("invalid direct snapshot root or integrity metadata")
+        artifacts = [validate_artifact(item, identifier, legacy, direct) for item in value["artifacts"]]
         if not artifacts and not value.get("optional_absent"):
             raise BackupError("required source has no artifacts")
         if len({item["relative_path"] for item in artifacts}) != len(artifacts):

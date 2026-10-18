@@ -118,7 +118,8 @@ class RecoveryFiles(unittest.TestCase):
         registry = yaml.safe_load(path.read_text())["recovery_service_registry"]
         host = yaml.safe_load((ROOT / "inventory/host_vars/ereshkigal.netbird.cloud/vars.yml").read_text())
         definitions = {identifier: definition for service in registry.values() for identifier, definition in service["sources"].items()}
-        self.assertEqual(set(definitions), {item["id"] for item in host["backup_jobs"]["database"]["sources"]})
+        expected = {item["id"] for job in host["backup_jobs"].values() for item in job["sources"] + job.get("extra_sources", [])}
+        self.assertEqual(set(definitions), expected | {"aria2-session"})
         for source in host["backup_jobs"]["database"]["sources"]:
             definition = definitions[source["id"]]
             self.assertEqual(definition["kind"], source["kind"])

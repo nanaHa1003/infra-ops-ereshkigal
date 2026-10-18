@@ -36,7 +36,7 @@
     owner: root
     group: root
     mode: '0700'
-  loop: [backup_common.py, backup_sources.py]
+  loop: [backup_common.py, backup_sources.py, backup_direct.py]
 
 - name: Refresh protected recovery configuration
   ansible.builtin.import_tasks: config.yml

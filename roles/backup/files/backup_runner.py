@@ -133,7 +133,7 @@ def run_job(config, job_id):
                 repo = config["repositories"][job["repository"]]
                 options, roots = direct_arguments(job["sources"], metadata)
                 result = restic(repo, ["backup", "--json", "--host", config["host"],
-                                      "--tag", "homelab-pending:" + job_id, *options, ".", *roots], cwd=stage, capture=True)
+                                      "--tag", "homelab-pending:" + job_id, *options, str(stage) if roots else ".", *roots], cwd=stage, capture=True)
                 summaries = [json.loads(line) for line in result.splitlines()]
                 snapshot = next(item["snapshot_id"] for item in summaries if item.get("message_type") == "summary")
                 if not re.fullmatch(r"[a-f0-9]{8,64}", snapshot):

@@ -57,6 +57,14 @@ recovery_service_registry:
         kind: files
         layout: reference
         required: true
+      authentik-media:
+        kind: files
+        target: authentik/media
+        layout: directory
+        owner: 1000
+        group: 1000
+        mode: '0600'
+        required: false
     storage_prefix: authentik
     verification:
       image_pattern: :2026\.5\.
@@ -124,6 +132,20 @@ recovery_service_registry:
         kind: files
         layout: reference
         required: true
+      wordpress-html:
+        kind: files
+        target: wordpress/html
+        layout: directory
+        owner: 1000
+        group: 1000
+        mode: '0600'
+        required: false
+        replaces:
+        - wordpress-config
+        - wordpress-themes
+        - wordpress-plugins
+        - wordpress-mu-plugins
+        - wordpress-htaccess
     storage_prefix: wordpress
   pinchflat:
     sources:
@@ -147,6 +169,22 @@ recovery_service_registry:
         kind: files
         layout: reference
         required: true
+      pinchflat-config:
+        kind: files
+        target: pinchflat/config
+        layout: directory
+        owner: 1000
+        group: 1000
+        mode: '0600'
+        required: false
+      pinchflat-downloads:
+        kind: files
+        target: pinchflat/downloads
+        layout: directory
+        owner: 1000
+        group: 1000
+        mode: '0600'
+        required: false
     storage_prefix: pinchflat
     verification:
       image_pattern: :v2026\.
@@ -167,6 +205,14 @@ recovery_service_registry:
         kind: files
         layout: reference
         required: true
+      immich-media:
+        kind: files
+        target: immich/library
+        layout: directory
+        owner: 0
+        group: 0
+        mode: '0600'
+        required: false
     storage_prefix: immich
     verification:
       image_pattern: :v2\.
@@ -196,6 +242,14 @@ recovery_service_registry:
         kind: files
         layout: reference
         required: true
+      mealie-data:
+        kind: files
+        target: mealie/data
+        layout: directory
+        owner: 1000
+        group: 1000
+        mode: '0600'
+        required: false
     storage_prefix: mealie
     verification:
       image_pattern: :v3\.
@@ -239,6 +293,14 @@ recovery_service_registry:
         kind: files
         layout: reference
         required: true
+      n8n-data:
+        kind: files
+        target: n8n/data
+        layout: directory
+        owner: 1000
+        group: 1000
+        mode: '0600'
+        required: false
     storage_prefix: n8n
     verification:
       image_pattern: :2\.28\.
@@ -294,7 +356,7 @@ recovery_service_registry:
         owner: 1000
         group: 1000
         mode: '0600'
-        required: true
+        required: false
       aria2-compose:
         kind: files
         layout: reference
