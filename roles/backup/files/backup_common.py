@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import signal
 
 
 class BackupError(Exception):
@@ -47,11 +48,25 @@ def restic(repo, args, *, cwd=None, timeout=3600, capture=False):
                 "AWS_ACCESS_KEY_ID": repo["access_key_id"], "AWS_SECRET_ACCESS_KEY": repo["secret_access_key"]})
     if os.environ.get("RESTIC_CACHE_DIR"):
         env["RESTIC_CACHE_DIR"] = os.environ["RESTIC_CACHE_DIR"]
+    if repo.get("cache_dir"):
+        env["RESTIC_CACHE_DIR"] = repo["cache_dir"]
+    timeout = repo.get("timeout", timeout)
+    process = None
     try:
-        result = subprocess.run(["restic", *args], env=env, cwd=cwd, stdout=subprocess.PIPE if capture else subprocess.DEVNULL,
-                                stderr=subprocess.PIPE, timeout=timeout, check=False)
-    except (OSError, subprocess.TimeoutExpired) as exc:
-        raise BackupError("restic unavailable or timed out") from exc
-    if result.returncode:
-        raise ResticError(result.returncode, result.stderr)
-    return result.stdout or b""
+        process = subprocess.Popen(["restic", *args], env=env, cwd=cwd,
+                                   stdout=subprocess.PIPE if capture else subprocess.DEVNULL,
+                                   stderr=subprocess.PIPE, start_new_session=True)
+        output, error = process.communicate(timeout=timeout)
+    except BaseException as exc:
+        if process is not None:
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            process.communicate()
+        if isinstance(exc, (OSError, subprocess.TimeoutExpired)):
+            raise BackupError("restic unavailable or timed out") from exc
+        raise
+    if process.returncode:
+        raise ResticError(process.returncode, error)
+    return output or b""
