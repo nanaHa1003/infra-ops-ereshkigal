@@ -1,23 +1,39 @@
-# Database and configuration backups
+# Service backups
 
-This job protects the active services' databases and selected configuration.
-It does **not** protect photos, videos, downloaded files or all application attachments.
-An encrypted off-site snapshot is not considered operationally verified until its databases have been restored in isolation.
+The separate `backup.yml` play manages three independent Restic jobs: off-site
+B2 database/configuration backups, local RustFS database/configuration backups,
+and local RustFS full-service backups including the explicitly selected media.
+The host inventory is the authoritative source allowlist. Upload, scratch
+restore, database verification and application recovery are separate milestones.
 
-## Deployment and acceptance status (2026-10-15)
+## Deployment and acceptance status (updated 2026-10-19)
 
-The current host has enabled backup, maintenance and check timers. The first B2
-backup succeeded; Healthchecks delivered failure and recovery emails. A scratch
-restore passed restic's content verification. Mealie and Pinchflat passed SQLite
-integrity checks. Isolated PostgreSQL imports succeeded for n8n (0 workflows,
-1 credential) and Authentik (9 users, 5 applications, 5 providers, 20 flows),
-matching the known production baselines.
+The RustFS feature was merged into `main` via PR #20 (merge `99429e2`). The user
+completed deployment and a repeat run reported `ok=31 changed=0 failed=0`.
+Backup, maintenance and check timers are configured for the three jobs below;
+this records configuration and manual acceptance, not evidence that every
+scheduled backup/maintenance/check has subsequently run successfully.
 
-Still pending: WordPress and Immich database imports, n8n credential decryption,
-application login/recovery checks, a deliberately missed-ping alert, and observation
-of a scheduled backup. Media protection, especially original Immich photos/videos,
-remains a separate next phase and is not provided by this job. Protected restore
-scratch data remains on the host until acceptance and deliberate cleanup.
+| Scope | Evidence obtained | Remaining limits |
+| --- | --- | --- |
+| B2 `database` | First backup and protected scratch restore succeeded; Healthchecks delivered failure and recovery emails. Mealie/Pinchflat SQLite integrity passed. Isolated production-dump imports matched n8n (0 workflows, 1 credential) and Authentik (9 users, 5 applications, 5 providers, 20 flows). | Production-dataset WordPress/Immich imports, n8n credential decryption and restored application login/recovery have not been established by these checks. |
+| RustFS `rustfs_db` | User completed a protected scratch restore on 2026-10-18. | A successful scratch restore is not application-level recovery acceptance. |
+| RustFS `rustfs_files` | Quiet retry completed on 2026-10-18 at 17:20 Asia/Taipei; completed snapshot short ID `1d9bb9fdc2fe`. Downloaded Immich photo/video, Mealie attachment and Pinchflat video samples all matched their source SHA-256 checks. | WordPress upload sample was skipped because no matching file up to 200 MiB was found. Sampling does not establish full-library completeness or application DB/media consistency. |
+| Cross-host recovery code | Container acceptance completed, including isolated synthetic database/n8n fixtures and media round trips. | No replacement-host production cutover, whole-machine reboot acceptance or measured production RTO. See [recovery.md](recovery.md). |
+
+The first full-media attempt failed the source-stability check; Immich media
+moves/additions were observed and mutable Mealie root logs needed exclusion.
+The failed snapshot stayed pending. After the log exclusion/diagnostic fix, the
+successful retry reused uploaded data and took about 44 seconds with about
+292 MB reported peak memory; this is not a clean first-upload benchmark.
+
+Still to observe/document: successful timer-triggered backups, maintenance and
+data checks for each job; a deliberately missed-ping alert; storage/runtime
+trends; and confirmation that recovery credentials are independently escrowed.
+Protected scratch restores contain secrets and require deliberate cleanup.
+Application upgrades remain postponed at the user's request. Authentik SMTP
+was separately confirmed by successful test-email receipt; this does not prove
+email or OIDC works in a restored application.
 
 ## Configuration
 
@@ -27,14 +43,14 @@ The current ereshkigal host explicitly overrides `backup_timers_enabled: true` a
 Applying `backup.yml` to this host enables its timers; override with `-e backup_timers_enabled=false` when only deploying inactive packaging.
 Different jobs can use different buckets or S3-compatible providers. Repository and job names are independent of object prefixes.
 
-Current destination:
+Off-site B2 destination (local RustFS destinations are listed below):
 
 ```text
 s3:https://s3.us-west-004.backblazeb2.com/homelab-db-snapshots/ereshkigal
 ```
 
 The B2 Application Key is restricted to this private bucket and the `ereshkigal/` prefix.
-Keep Object Lock disabled for this initial design. Do not add lifecycle rules which delete live restic repository objects.
+Keep Object Lock disabled for this Restic repository. Do not add lifecycle rules which delete live restic repository objects.
 B2 can retain hidden/noncurrent versions after deletion; review their lifecycle and billed usage separately from restic's logical repository size.
 
 Edit secrets with `ansible-vault edit inventory/group_vars/all/vault.yml`:
@@ -53,11 +69,11 @@ vault_secrets:
 ```
 
 These are example field names, not values to replace existing secrets with.
-Retain the original `vault_secrets.aria2.rpc_secret`, which the config template uses for `aria2.saveSession`.
+Retain `vault_secrets.aria2.rpc_secret` for the Aria2 service. Newly produced backup jobs exclude Aria2 session state; the runner retains legacy session-source compatibility.
 Never paste secret values in chat, use them in command arguments, or commit decrypted Vault/config files.
 After repository initialization, merely editing `restic_password` does not rotate the repository key: use restic's key management procedure and verify access before removing any old key.
 
-## What is included
+## Database/configuration scope (`database` and `rustfs_db`)
 
 The host inventory is the authoritative allowlist. Verified source paths on the current deployment:
 
@@ -70,7 +86,7 @@ The host inventory is the authoritative allowlist. Verified source paths on the 
 | Mealie | `/mnt/storage/mealie/data/mealie.db`, custom prompts, Compose |
 | Pinchflat | `/mnt/storage/pinchflat/config/db/pinchflat.db`, extras including cookies, Compose |
 | Homepage | persisted config, Compose |
-| Aria2 | config/settings/scripts/filter, session explicitly flushed through RPC and copied with change detection, Compose |
+| Aria2 | config/settings/scripts/filter and Compose; downloads and session excluded |
 | Proxy/DDNS | both proxy Compose manifests, Caddyfile, Caddy data/config including TLS private keys, root-only DDNS script |
 
 PostgreSQL dumps use each running database container's matching `pg_dump`, custom archive format and no ownership/ACL commands.
@@ -85,12 +101,14 @@ All required sources must succeed before upload. Missing optional sources are re
 
 Aria2's `superng6/aria2` image reads the RPC token from `SECRET`, which overrides
 `rpc-secret` in its configuration file. The Compose template passes the Vault token
-through that variable so the backup's `aria2.saveSession` request uses the same token.
-After updating an older deployment that used `RPC_SECRET`, deploy the `aria2` tag
-before retrying a backup; the container is recreated with its existing config and downloads.
+through that variable. Legacy backups containing an `aria2_session` source use
+the same token for `aria2.saveSession`; current job allowlists omit this source.
+For an older deployment that still backs up session state and used `RPC_SECRET`,
+deploy the `aria2` tag before retrying that legacy backup. Current config-only
+Aria2 backups do not require a session RPC call.
 
-Excluded: Immich original media/ML cache, WordPress uploads, Authentik media images, Mealie images/attachments, n8n external binary files/logs, Pinchflat downloads/metadata media, Aria2 downloads/DHT cache, Redis/Valkey caches, raw PostgreSQL/MariaDB volumes, retired New-API, LANraragi and Home Assistant.
-Database-only Immich restore cannot recover lost photos. The same limitation applies to other excluded attachments.
+Excluded from the database/configuration jobs: Immich original media/ML cache, WordPress uploads, Authentik media images, Mealie images/attachments, n8n external binary files/logs, Pinchflat downloads/metadata media, Aria2 downloads/DHT cache, Redis/Valkey caches, raw PostgreSQL/MariaDB volumes, retired New-API, LANraragi and Home Assistant.
+Database-only Immich restore cannot recover lost photos. The same limitation applies to other excluded attachments. The local `rustfs_files` job includes the selected service media described below; these media are not copied to B2.
 
 ## Initial deployment, one step at a time
 
@@ -169,11 +187,11 @@ Record commands, image versions, sample counts and duration without recording cr
 Only mark these checks complete after executing them. Local automated tests prove a restic/SQLite round trip and orchestration failure behavior; they cannot prove the production datasets restore correctly.
 Protected restore scratch files contain secrets and require deliberate cleanup after inspection; do not leave them on a shared filesystem.
 
-## Scheduling, retention and monitoring
+## B2 scheduling, retention and monitoring
 
 - Backups: 00/06/12/18 Asia/Taipei; persistent systemd timers catch a missed run after restart.
 - Weekly retention/metadata check: Sunday 03:00 Asia/Taipei. Monthly rotating quarter-data check: day 1 at 09:00 Asia/Taipei.
-- Every operation shares a nonblocking lock outside staging. An overlapping operation fails without deleting the active staging tree or uploading another batch.
+- Operations on the same normalized repository URL share a nonblocking lock outside staging. Different repositories can run concurrently; an overlapping operation on the same repository fails without deleting the active staging tree or uploading another batch.
 - Retention is a union: `--keep-within 48h --keep-daily 14 --keep-weekly 8 --keep-monthly 12`, filtered by fixed host, job tag and staging path.
   `keep-within` is relative to the latest snapshot. Sparse daily/weekly/monthly versions may span longer calendar periods.
 - Pending snapshots from unsuccessful uploads use a separate scoped retention (48h plus the most recent pending snapshot for diagnosis). They are never reported as verified backup versions.
@@ -181,7 +199,7 @@ Protected restore scratch files contain secrets and require deliberate cleanup a
 - Healthchecks: Simple period 6h, grace 2h. Start expects completion within 2h; no ping for roughly 8h also alerts. Explicit failure signals alert sooner.
 - Only a complete export and successful upload send success. Healthchecks receives no SQL, secrets or raw command output.
 - Maintenance does not send backup success pings, since that could hide stalled backups. Its failures are visible in systemd/journal; external maintenance monitoring needs a separate Check and is not configured by this version.
-- `TimeoutStartSec=115min` and a runner deadline prevent operations from hanging indefinitely. No guarantee of a recovery time is made before measuring a full restore.
+- The default service limit is `TimeoutStartSec=115min`, with a runner deadline; the full-service job overrides its operation limit to 12 hours. No guarantee of a recovery time is made before measuring a full restore.
 
 Review runtime, transferred bytes, B2 billed usage and retained versions after one week. Six hours is a target recovery point plus backup completion time, contingent on successful jobs; the eight-hour alert threshold is not a data-loss guarantee.
 
@@ -196,8 +214,8 @@ Review runtime, transferred bytes, B2 billed usage and retained versions after o
 ## Independent RustFS service backups
 
 The RustFS extension adds two local jobs alongside the existing B2 `database`
-job. It is prepared in code; deployment, production repository initialization,
-first full backups and application-level recovery acceptance are separate steps.
+job. Deployment, production backups and sample restores have completed as
+recorded above; full application-level recovery remains a separate milestone.
 Hecate and Ereshkigal are at the same location, so local media protection is not
 an off-site media copy. Application upgrades remain out of scope.
 
@@ -314,3 +332,18 @@ flow with approved storage. Check sample media hashes/openability, SQLite data,
 DB imports and service-specific DB/media references before declaring acceptance.
 The repository smoke test established small-object and Restic compatibility,
 not first production backup success or sustained full-data performance.
+
+## Follow-up priorities and scope boundary
+
+1. Observe timer-triggered backup, maintenance and data-check results for all
+   three jobs. Review journal failures and success-marker age; local jobs have
+   no external missed-run alert by design.
+2. Confirm independent recovery records for Restic passwords, repository URLs,
+   storage access, encrypted Vault/controller configuration and Vault unlock
+   method. Do not store the only recovery copy on either backup host.
+3. Record storage growth, backup/check duration and B2 billed versions before
+   changing retention or frequency. Review protected scratch data before cleanup.
+4. Resume application/image update review when requested. n8n uses PG18;
+   Authentik currently uses PG16. They are separate upgrade decisions.
+5. A replacement-host cutover drill and off-site media protection remain future
+   work; Container acceptance is the agreed completed development gate.

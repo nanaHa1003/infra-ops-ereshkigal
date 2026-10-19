@@ -1,8 +1,8 @@
 # 替代主機復原
 
-此功能從固定 Restic 快照還原資料庫與設定到**另一台具備必要容器執行能力的 Linux 主機**，不需要來源主機 SSH。`recover.yml` 是獨立入口，`site.yml` 不包含任何復原操作。照片、影片、下載、WordPress uploads、Mealie 附件不在目前備份範圍。
+此功能從固定 Restic 快照還原資料庫與設定到**另一台具備必要容器執行能力的 Linux 主機**，不需要來源主機 SSH。`recover.yml` 是獨立入口，`site.yml` 不包含任何復原操作。可復原內容取決於選定 job：B2 `database` 與 RustFS `rustfs_db` 僅含資料庫／設定；RustFS `rustfs_files` 另含明確列出的照片、影片、WordPress HTML/uploads、Mealie 附件等服務資料。Aria2 下載不在本功能範圍。
 
-要讓後續快照自動記錄 image digests、資料庫 preload／DEFINER 與網域，需另外由操作者部署新版 `backup.yml` 並確認新快照成功；目前開發未變更正式機的備份程式。既有舊快照使用明確 legacy profile，缺版本資訊時不能保證無人介入復原。
+目前備份程式已部署，並已有成功的 B2 與 RustFS 快照；現行 manifest 支援記錄 image digests、資料庫 preload／DEFINER 與網域。復原前仍須檢查所選快照實際含有的資訊，不能因目前程式支援就假定所有歷史快照完整。既有舊快照使用明確 legacy profile，缺版本資訊時不能保證無人介入復原。
 
 依使用者於2026-10-16確認，本次以 Container 測試作為驗收標準，不再以空白 Fedora VM 演練作為完成條件。已驗證範圍與未涵蓋的主機行為列於文件末尾。
 
@@ -63,7 +63,7 @@ ansible-playbook recover.yml -i inventory/recovery.ini --limit replacement \
 1. 若舊機可用：先停止所有會寫入的應用，做最後一次備份並確認成功，以該 snapshot **重新** plan/restore/verify。演練中途的舊快照不能代表最後狀態。
 2. 關閉／隔離舊主機的服務、排程、外部路由與 DDNS，確保它無法重新寫入或接流量，留下 fencing 紀錄。
 3. 審閱 protected report；對沒有 baseline 的有限驗證，設定 `recover_accept_limited` 每個服務的具體審閱紀錄。這不會略過失敗、未知 schema 或媒體限制。
-4. 明確選 `recover_activate_services`（已還原服務子集）及依賴。Proxy/Homepage 需要 Authentik；首頁與 Proxy 一起啟用。缺照片／uploads／下載／附件的服務保持停止；其他已明選服務可單獨接管。完整媒體已由外部恢復時，必須位於服務預期目錄且非空，再提供 `recover_media_evidence.<service>.reference` 作完整性確認，工具只檢查路徑存在，不代替媒體內容驗證。
+4. 明確選 `recover_activate_services`（已還原服務子集）及依賴。Proxy/Homepage 需要 Authentik；首頁與 Proxy 一起啟用。缺照片／uploads／下載／附件的服務保持停止；其他已明選服務可單獨接管。完整媒體由 v3 快照或外部方式恢復後，必須位於服務預期目錄且非空，再提供 `recover_media_evidence.<service>.reference` 作完整性確認，工具只檢查路徑存在，不代替媒體內容驗證。
 5. 設定 `recover_old_host_fenced: true`、`recover_fencing_reference`，`recover_cutover_complete: false`、`recover_enable_ddns: false`，執行 activate：
 
 ```sh
@@ -83,7 +83,7 @@ ansible-playbook recover.yml -i inventory/recovery.ini --limit replacement \
 
 本機隔離 Linux/arm64 component tests：PG16.10、PG18.0、Immich PG14（vector/vectors/vchord、向量索引）、MariaDB11.4.5（routine/event/trigger/DEFINER）、SQLite integrity/WAL；移除來源 DB 後仍可匯入，FK、ownership、app 非 superuser、重跑不重灌均已檢查。四組 DB matrix 約76秒（images cached）；n8n2.28.0 正／錯金鑰與 active workflow 不執行約29秒。這些數字只描述小型假資料測試，不能據此承諾正式 RTO。
 
-**本次 Container 驗收已通過。** 未涵蓋空白 Fedora43 x86_64 主機安裝、SELinux enforcing、實體儲存掛載及整機重開機後的完整接管；這些是已知測試界線，不是本次完成條件。不同 UID／資料路徑已有容器測試。尚未在新機部署本功能，也未對正式 B2 repository 做復原寫入。照片／媒體備份及完整性驗證另行處理。
+**本次 Container 驗收已通過。** 未涵蓋空白 Fedora43 x86_64 主機安裝、SELinux enforcing、實體儲存掛載及整機重開機後的完整接管；這些是已知測試界線，不是本次完成條件。不同 UID／資料路徑已有容器測試。尚未在新機部署本功能，也未對正式 B2 repository 做復原寫入。RustFS 媒體備份及抽樣下載核對已於2026-10-18完成，見 [備份驗收紀錄](backup.md)；這不等於完整圖庫一致性或正式接管驗收。
 
 開發回歸另包含：145項 unittest／本機 Restic 測試通過（五項需 Docker 的測試在一般 suite 明確停用，另以強制 gate 全部實跑；需要 root 的動態 Ansible prepare 測試另在 Molecule 實跑通過，九個服務產生固定 digest Compose 且沒有 startup task）；v1/v2 在來源刪除後 plan→download→restore→verify 的 SQLite/config round trip；Molecule recovery 以 UID1007/GID1008 驗證實際 owner，第二次 converge 零變更。Molecule 僅驗證 component 包裝與資料層，不宣稱已跑完整 Fedora43 `recover.yml` 正式接管。
 
@@ -120,3 +120,15 @@ Data restoration and application acceptance remain separate. Media-reference
 checks and explicit activation evidence are still required before starting an
 application; having files in a v3 snapshot does not by itself prove Immich or
 another service has a complete, coherent library.
+
+## 正式資料驗證進度（2026-10-19）
+
+- RustFS full-service 功能已合併至 `main`；使用者已部署並確認重跑零變更。
+- `rustfs_db` 已成功還原到受保護 scratch 目錄；`rustfs_files` 快照
+  `1d9bb9fdc2fe` 的 Immich 照片／影片、Mealie 附件、Pinchflat 影片抽樣
+  下載 SHA-256 核對通過。WordPress uploads 抽樣因無符合大小條件檔案而跳過。
+- 正式資料的 B2 SQLite、n8n／Authentik 匯入紀錄見備份文件；它們與上述
+  synthetic Container fixtures 的驗收不同，不能互相替代。
+- 尚無替代主機正式資料的完整 `plan → restore → verify → activate`、登入／OIDC、
+  重開機接管或跨架構替代 image 對應的驗收證據。使用者已接受 Container 驗收，
+  不以新增整機演練作為目前功能完成條件。

@@ -88,3 +88,15 @@ CI observation: initial lint/secret scan passed. The real database matrix passed
 Live acceptance follow-up (2026-10-18): first full-media upload produced only a pending snapshot. Restic metadata reports completion at 15:00:11, followed by service failure at 15:00:22. Read-only comparison found Immich upload-to-library moves and new media during capture (14 added entries, 2 removed), which violate the unchanged-source contract; Mealie's root `mealie.log` also remained mutable and was missing from runtime-log exclusions. Kernel journal contained no OOM entries for this interval; memory peak alone does not establish the cause.
 Fix: exclude only Mealie root runtime log/rotations; preserve the strict source check and pending-snapshot gate. Add secret-safe fixed phase/Restic exit diagnostics and validated source-ID mutation counts, without logging private filenames or raw errors. No production services were restarted or production backups retriggered. Real disposable Restic regression confirms mutation stays pending and a subsequent quiet retry completes.
 Verification: five new regressions observed RED before changes. Full authorized-environment suite GREEN: 184 tests, 6 environment-dependent skips, no failures (110.858s); isolated synthetic-Vault lint: 0 failures/0 warnings; backup.yml syntax and git diff --check passed. The initial restricted-sandbox run could not access Ansible temp/RPC and Restic cache resources; rerunning with the previously used permitted environment resolved those execution restrictions. PR remains draft pending live retry and restore acceptance.
+
+Post-implementation status (2026-10-19; supersedes the draft/pending statements
+above): user deployment and repeat convergence completed (`ok=31 changed=0
+failed=0`). RustFS DB scratch restore succeeded. Full-service quiet retry
+completed on October 18 at 17:20 Asia/Taipei (snapshot `1d9bb9fdc2fe`), followed
+by successful SHA-256 download checks for an Immich photo/video, Mealie
+attachment and Pinchflat video. WordPress upload sampling was skipped because
+no eligible file up to 200 MiB was found. PR #20 merged into `main` as
+`99429e2`. This closes the implementation/manual sample-acceptance work, not
+full application cutover or scheduled maintenance/check observation. Current
+status and remaining work are maintained in `docs/backup.md` and
+`docs/recovery.md`; earlier ledger entries describe their original checkpoints.
