@@ -30,6 +30,13 @@ class AuthentikUpgradeContract(unittest.TestCase):
         self.assertEqual(self.auth_defaults["auth_authentik_image"],
                          "ghcr.io/goauthentik/server:2026.8.4")
 
+    def test_recovery_accepts_current_and_previous_authentik_image_families(self):
+        services = read_yaml("roles/recovery/vars/services.yml")
+        pattern = services["recovery_service_registry"]["auth"]["verification"]["image_pattern"]
+        self.assertRegex("ghcr.io/goauthentik/server:2026.5.7", pattern)
+        self.assertRegex("ghcr.io/goauthentik/server:2026.8.4", pattern)
+        self.assertNotRegex("ghcr.io/goauthentik/server:2026.6.0", pattern)
+
     def test_proxy_uses_the_host_pinned_address(self):
         self.assertTrue(self.host.get("proxy_caddy_ipv4_address"),
                         "the host must pin the address used by Caddy")
@@ -60,8 +67,7 @@ class AuthentikUpgradeContract(unittest.TestCase):
         ]
         trusted = [ip_network(value.strip()) for value in raw_cidrs.split(",")]
         caddy_ip = ip_interface(self.host["proxy_caddy_ipv4_address"]).ip
-        self.assertTrue(any(caddy_ip in network for network in trusted))
-        self.assertTrue(all(network.prefixlen == network.max_prefixlen for network in trusted))
+        self.assertEqual(trusted, [ip_network(f"{caddy_ip}/32")])
         self.assertEqual(services["authentik-worker"]["environment"],
                          services["authentik-server"]["environment"])
 

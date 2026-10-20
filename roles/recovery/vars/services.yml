@@ -67,7 +67,7 @@ recovery_service_registry:
         required: false
     storage_prefix: authentik
     verification:
-      image_pattern: :2026\.5\.
+      image_pattern: :2026\.(?:5|8)\.
       tables:
         users: authentik_core_user
         applications: authentik_core_application
