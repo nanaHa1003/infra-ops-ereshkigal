@@ -2,7 +2,7 @@
 # Default variables for the auth role.
 
 auth_authentik_image: "ghcr.io/goauthentik/server:2026.8.4"
-auth_postgres_image: "postgres:16-alpine"
+auth_postgres_image: "postgres:18-alpine"
 auth_redis_image: "redis:alpine"
 
 # Upstream defaults. Narrow this to the actual proxy addresses per host.
