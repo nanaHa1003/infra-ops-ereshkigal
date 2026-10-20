@@ -47,6 +47,7 @@ services:
       AUTHENTIK_POSTGRESQL__USER: authentik
       AUTHENTIK_POSTGRESQL__NAME: authentik
       AUTHENTIK_POSTGRESQL__PASSWORD: {{ vault_secrets.authentik.pgpass }}
+      AUTHENTIK_LISTEN__TRUSTED_PROXY_CIDRS: "{{ auth_trusted_proxy_cidrs }}"
 
       # SMTP Host Emails are sent to
       AUTHENTIK_EMAIL__FROM: "{{ auth_email_from }}"

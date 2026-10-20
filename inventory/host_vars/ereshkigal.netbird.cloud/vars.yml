@@ -9,6 +9,11 @@ ansible_python_interpreter: /usr/bin/python3
 immich_ml_devices: []
 immich_ml_usb_bus: ""
 
+# Authentik 2026.8 accepts forwarded headers only from explicitly trusted proxies.
+# Pin Caddy to this address so the trusted CIDR can remain a single host route.
+proxy_caddy_ipv4_address: "172.23.0.14"
+auth_trusted_proxy_cidrs: "172.23.0.14/32"
+
 # User requested scheduled backups on this host. Repository init remains opt-in.
 backup_timers_enabled: true
 
