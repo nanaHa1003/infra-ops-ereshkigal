@@ -7,7 +7,12 @@ services:
     cap_add:
       - NET_ADMIN
     networks:
+{% if proxy_caddy_ipv4_address | default('') %}
+      backend:
+        ipv4_address: "{{ proxy_caddy_ipv4_address }}"
+{% else %}
       - backend
+{% endif %}
     ports:
       - "80:80"
       - "443:443"

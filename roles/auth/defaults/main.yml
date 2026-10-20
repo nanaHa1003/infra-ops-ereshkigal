@@ -1,9 +1,12 @@
 ---
 # Default variables for the auth role.
 
-auth_authentik_image: "ghcr.io/goauthentik/server:2026.5.7"
+auth_authentik_image: "ghcr.io/goauthentik/server:2026.8.4"
 auth_postgres_image: "postgres:16-alpine"
 auth_redis_image: "redis:alpine"
+
+# Upstream defaults. Narrow this to the actual proxy addresses per host.
+auth_trusted_proxy_cidrs: "127.0.0.0/8,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,fe80::/10,::1/128"
 
 # SMTP configuration for Authentik email sending
 auth_smtp_host: "smtp.resend.com"
