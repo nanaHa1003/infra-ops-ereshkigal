@@ -48,7 +48,6 @@ optimized for **Fedora 43** running on a Netbird mesh network.
 │   ├── auth/            # Authentik (PostgreSQL + Redis + server + worker)
 │   ├── wordpress/       # WordPress FPM + MariaDB
 │   ├── pinchflat/       # Pinchflat YouTube media manager
-│   ├── tubearchivist/   # TubeArchivist (disabled — kept for reference)
 │   ├── immich/          # Immich + CPU ML + PostgreSQL + Valkey
 │   ├── mealie/          # Mealie recipe manager + AI prompts
 │   ├── homepage/        # Homepage dashboard
