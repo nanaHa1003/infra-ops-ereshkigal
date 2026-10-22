@@ -72,6 +72,24 @@ class ImmichUpgradeContract(unittest.TestCase):
             self.assertEqual(permissions[path]["group"], 0)
             self.assertEqual(permissions[path]["mode"], "0700")
 
+    def test_recovery_uses_snapshot_postgres_major_for_immich_mount_layout(self):
+        expected_mount = (
+            "{{ '/var/lib/postgresql' if "
+            "recovery_pinned_plan.model.sources['immich-db'].version.split()[1].split('.')[0] | int >= 18 "
+            "else '/var/lib/postgresql/data' }}"
+        )
+        for playbook in (
+            "roles/recovery/tasks/prepare.yml",
+            "roles/recovery/tasks/start-service.yml",
+        ):
+            tasks = read_yaml(playbook)
+            immich_task = next(
+                task for task in tasks
+                if task.get("ansible.builtin.include_role", {}).get("name") == "immich"
+            )
+            self.assertEqual(immich_task["vars"]["immich_postgres_data_path"], "immich/postgres")
+            self.assertEqual(immich_task["vars"]["immich_postgres_mount_path"], expected_mount)
+
 
 if __name__ == "__main__":
     unittest.main()
