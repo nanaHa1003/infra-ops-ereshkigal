@@ -24,6 +24,13 @@
       "groupName": null
     },
     {
+      "description": "Require an explicit migration plan before changing the PostgreSQL image major version",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["postgres"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
       "description": "Temporarily keep CI Python below 3.15: current Ansible CLI fails on removed dataclasses internals; revisit after compatibility validation",
       "matchManagers": ["github-actions"],
       "matchPackageNames": ["python"],
