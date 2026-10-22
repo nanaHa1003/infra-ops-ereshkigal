@@ -13,11 +13,12 @@ sys.path[:0] = [str(ROOT / 'roles/recovery/files'), str(ROOT / 'roles/backup/fil
 from recovery_databases import _docker, _restore_postgres, _restore_mariadb, pg_sql, mysql_sql, database_spec, restore_database, stop_recovery_databases, BackupError
 from recovery_state import open_run, advance_service
 from backup_sources import database_export
+from recovery_pull import pull_fixture_image
 
 @unittest.skipUnless(os.environ.get('HOMELAB_RECOVERY_INTEGRATION') == '1', 'real database integration explicitly disabled')
 class RealDatabaseRecovery(unittest.TestCase):
     def roundtrip(self, service, tag, major, extension=False):
-        _docker(['pull', tag], timeout=900)
+        pull_fixture_image(tag, _docker)
         image = json.loads(_docker(['image', 'inspect', '--format', '{{json .RepoDigests}}', tag]))[0]
         run = 'db-' + secrets.token_hex(5)
         base = Path(os.environ['HOMELAB_RECOVERY_FIXTURE_ROOT']) / run
