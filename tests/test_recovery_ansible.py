@@ -69,7 +69,10 @@ class RecoveryAnsible(unittest.TestCase):
         self.assertEqual(len(tasks),9)
         variables=yaml.safe_load((ROOT/'inventory/group_vars/all/vault.ci.yml').read_text())
         variables.update({'domain':'fixture.test','timezone':'UTC','storage_root':str(self.scratch/'data'),'stack_root':str(self.scratch/'stack'),
-            'recover_services':list(IMAGE_VARIABLES),'recovery_pinned_plan':{'image_variables':{name:'fixture/'+name+'@sha256:'+'a'*64 for names in IMAGE_VARIABLES.values() for name in names.values()}}})
+            'recover_services':list(IMAGE_VARIABLES),'recovery_pinned_plan':{
+                'image_variables':{name:'fixture/'+name+'@sha256:'+'a'*64 for names in IMAGE_VARIABLES.values() for name in names.values()},
+                'model':{'sources':{'immich-db':{'version':'PostgreSQL 18.0'}}},
+            }})
         play=self.scratch/'prepare.yml'
         play.write_text(yaml.safe_dump([{'name':'Execute actual recovery prepare role includes','hosts':'one','gather_facts':False,'vars':variables,'tasks':tasks}],sort_keys=False))
         executable=shutil.which('ansible-playbook') or str(Path(sys.executable).parent/'ansible-playbook')
@@ -79,7 +82,11 @@ class RecoveryAnsible(unittest.TestCase):
         for service in IMAGE_VARIABLES:
             path=self.scratch/'stack'/service/'docker-compose.yml'
             self.assertTrue(path.exists(),str(path))
-            self.assertTrue(all('@sha256:' in value['image'] for value in yaml.safe_load(path.read_text())['services'].values()))
+            compose=yaml.safe_load(path.read_text())
+            self.assertTrue(all('@sha256:' in value['image'] for value in compose['services'].values()))
+            if service=='immich':
+                database=compose['services']['database']
+                self.assertTrue(any(mount.endswith(':/var/lib/postgresql:Z') for mount in database['volumes']))
 
     def test_host_integration_skips_selinux_and_does_not_bootstrap_distribution(self):
         install = yaml.safe_load((ROOT/'roles/recovery/tasks/install.yml').read_text())

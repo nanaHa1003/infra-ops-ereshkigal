@@ -86,6 +86,10 @@ provisioner:
             owner: 999
             group: 0
             mode: "0700"
+          - path: "immich/postgres-pg18"
+            owner: 999
+            group: 0
+            mode: "0700"
           - path: "mealie/data"
             owner: 1000
             group: 1000
