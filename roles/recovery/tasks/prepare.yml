@@ -72,6 +72,8 @@
     immich_server_image: '{{ recovery_pinned_plan.image_variables.immich_server_image }}'
     immich_ml_image: '{{ recovery_pinned_plan.image_variables.immich_ml_image }}'
     immich_postgres_image: '{{ recovery_pinned_plan.image_variables.immich_postgres_image }}'
+    immich_postgres_data_path: immich/postgres
+    immich_postgres_mount_path: "{{ '/var/lib/postgresql' if recovery_pinned_plan.model.sources['immich-db'].version.split()[1].split('.')[0] | int >= 18 else '/var/lib/postgresql/data' }}"
     immich_redis_image: '{{ recovery_pinned_plan.image_variables.immich_redis_image }}'
   when: '''immich'' in recover_services'
 - name: Prepare pinned mealie files

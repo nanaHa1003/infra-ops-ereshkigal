@@ -62,7 +62,7 @@ services:
       - POSTGRES_PASSWORD={{ vault_secrets.immich.db_password }}
       - POSTGRES_INITDB_ARGS=--data-checksums
     volumes:
-      - {{ storage_root }}/immich/postgres:/var/lib/postgresql/data:Z
+      - {{ storage_root }}/{{ immich_postgres_data_path }}:{{ immich_postgres_mount_path }}:Z
     shm_size: 128mb
     restart: always
 
