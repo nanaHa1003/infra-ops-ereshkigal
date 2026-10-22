@@ -117,7 +117,9 @@ jobs:
       - name: Run all real engine cases against disposable runner Docker
         run: |
           mkdir -p "$RUNNER_TEMP/recovery-fixtures"
-          sudo -E "$(command -v python)" tests/run_recovery_integration.py
+          sudo env "HOMELAB_RECOVERY_INTEGRATION=1" \
+            "HOMELAB_RECOVERY_FIXTURE_ROOT=$RUNNER_TEMP/recovery-fixtures" \
+            "$(command -v python)" tests/run_recovery_integration.py
         env:
           HOMELAB_RECOVERY_INTEGRATION: "1"
           HOMELAB_RECOVERY_FIXTURE_ROOT: ${{ runner.temp }}/recovery-fixtures

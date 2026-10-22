@@ -96,6 +96,11 @@ except runner.BackupError: sys.exit(1)
                 if process.poll() is None: process.kill(); process.communicate()
 
 class IntegrationGate(unittest.TestCase):
+    def test_ci_explicitly_passes_recovery_integration_environment_through_sudo(self):
+        workflow = (ROOT / ".github/workflows/ci.yml").read_text()
+        self.assertIn('sudo env "HOMELAB_RECOVERY_INTEGRATION=1"', workflow)
+        self.assertIn('"HOMELAB_RECOVERY_FIXTURE_ROOT=$RUNNER_TEMP/recovery-fixtures"', workflow)
+
     def test_ci_rejects_zero_tests_or_dependency_skips(self):
         import run_recovery_integration as gate
         class Result:
