@@ -5,6 +5,9 @@ services:
     image: {{ aria2_image }}
     container_name: aria2
     restart: unless-stopped
+    # Aria2B manages peer blocklists with ipset in the container network namespace.
+    cap_add:
+      - NET_ADMIN
     ports:
       - "{{ aria2_rpc_port }}:{{ aria2_rpc_port }}"
       - "{{ aria2_bt_port }}:{{ aria2_bt_port }}"
@@ -18,5 +21,7 @@ services:
       - LISTEN_PORT={{ aria2_bt_port }}
       - TZ={{ timezone }}
     volumes:
+      # Aria2B may need the host's kernel module metadata for ipset support.
+      - /lib/modules:/lib/modules:ro
       - {{ storage_root }}/aria2/config:/config:Z
       - {{ storage_root }}/aria2/downloads:/downloads:Z

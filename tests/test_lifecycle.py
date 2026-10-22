@@ -66,6 +66,15 @@ class LifecycleContracts(unittest.TestCase):
         # superng6/aria2's run script passes SECRET as --rpc-secret.
         self.assertEqual(environment.get("SECRET"), "test-token")
 
+    def test_aria2b_has_net_admin_and_read_only_kernel_modules(self):
+        context = read_yaml("roles/aria2/defaults/main.yml")
+        context.update({"storage_root": "/mnt/storage", "timezone": "UTC",
+                        "vault_secrets": {"aria2": {"rpc_secret": "test-token"}}})
+        source = (ROOT / "roles/aria2/templates/aria2.yml.j2").read_text()
+        service = yaml.safe_load(render(source, context))["services"]["aria2"]
+        self.assertEqual(service["cap_add"], ["NET_ADMIN"])
+        self.assertIn("/lib/modules:/lib/modules:ro", service["volumes"])
+
     def normalize_proxy_task(self, parameters):
         with tempfile.TemporaryDirectory(prefix="homelab-proxy-") as directory:
             context = read_yaml("roles/proxy/defaults/main.yml")
