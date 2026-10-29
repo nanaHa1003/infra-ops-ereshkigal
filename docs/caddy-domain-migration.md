@@ -23,7 +23,7 @@ routes send the parsed client IP upstream; WordPress receives it as REMOTE_ADDR.
 Review the static CIDR list against Cloudflare's official IPv4/IPv6 lists when
 maintaining this configuration.
 
-This phase adds aliases, not application migration. Existing OIDC issuers and
+The additional sites are aliases; application URLs are configured separately. Existing OIDC issuers and
 callbacks, WordPress canonical URL, n8n webhook URL, and Mealie BASE_URL retain
 their old values. Applications may redirect back to the old domain. Homepage's
 new hostname uses the same Authentik protection, but its Authentik provider may
@@ -38,8 +38,8 @@ after deciding which legacy names remain public versus management-only.
 Deploy after reviewing the candidate Caddy configuration:
 
 First ensure the image referenced by `proxy_caddy_image` has been published and
-is readable from Ereshkigal. Bootstrap candidates use immutable build tags; main
-publishes the Caddy version tag. Pin the deployment reference by digest. Do not
+is readable from Ereshkigal. Main publishes version and immutable build tags.
+Pin the deployment reference by digest. Do not
 deploy the old deSEC-only image with the Cloudflare DNS configuration.
 
 ```sh

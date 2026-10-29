@@ -349,20 +349,24 @@ and mode. UIDs are aligned to match container process UIDs:
 
 ## Service backups
 
-The separate `backup.yml` play provisions restic backups; repository initialization
-is explicitly opt-in. Timers default to disabled, but this host enables them for
-database/configuration backups every six hours and local full-service backups
-daily. B2 and the two RustFS jobs use independent repositories; only B2 sends
-Healthchecks pings. Deployment, B2 database checks, RustFS scratch restore and
-selected media sample downloads have succeeded. Full application recovery and
-scheduled-run observations have separate acceptance limits.
-See [backup setup and recovery](docs/backup.md) for source allowlists, credentials,
-schedules and dated acceptance evidence.
+The separate `backup.yml` play provisions Restic backups. Repository initialization
+is explicitly opt-in. Timers default to disabled; the host inventory enables
+six-hour database/configuration backups and daily local full-service backups.
+B2 and the two RustFS jobs use independent repositories. Only B2 sends
+Healthchecks pings. See [backup operations](docs/backup.md) for source allowlists,
+credentials, schedules and verification commands.
+
+## Replacement-host recovery
+
+The separate `recover.yml` play restores a pinned Restic snapshot through
+plan, restore, verify and explicit activation phases. It uses historical Vault
+credentials and image digests, restores into separate target storage, and
+requires fencing the source host before starting applications. Recovery checks
+Linux, Docker, Compose and storage capabilities without a distribution allowlist;
+host provisioning is separate. Available data depends on the selected backup
+job. See [recovery operations](docs/recovery.md) for prerequisites, commands and
+activation safeguards.
 
 ## License
 
 MIT — Created and maintained by nanaha1003.
-
-## 替代主機復原
-
-獨立入口 `recover.yml` 支援固定 Restic 快照的 plan → restore → verify → 明確 activate；不從 `site.yml` 自動執行。使用歷史 Vault 與 image digests，還原到新機獨立儲存路徑，應用啟動前要求舊機 fencing。見 [復原操作與驗收限制](docs/recovery.md)。復原依 Linux／Docker／Compose／儲存能力檢查，不限定發行版；主機 provisioning 獨立處理。本次以 Container 測試驗收；RustFS v3 快照可另含指定服務媒體，已有抽樣下載核對，尚未完成替代主機的正式接管演練。

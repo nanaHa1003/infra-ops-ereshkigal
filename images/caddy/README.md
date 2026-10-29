@@ -14,20 +14,16 @@ multi-architecture image with SBOM and build provenance to:
 `ghcr.io/nanaha1003/infra-ops-ereshkigal/caddy-dns`
 
 Main builds publish a version tag (such as `2.11.7`) and an immutable build tag
-(`2.11.7-build-RUN_ID-ATTEMPT`). The initial feature build published an immutable
-bootstrap candidate; that temporary branch publication path has been removed.
-Only main can publish now. PR workflows validate but never publish. There is no
-automated deployment to the homelab.
+(`2.11.7-build-RUN_ID-ATTEMPT`). Only main can publish. PR workflows validate
+without publishing. Deployment to the homelab requires an explicit Ansible run.
 
-Verify package visibility before anonymous host/recovery pulls. The bootstrap
-image has been verified anonymously readable. If future package settings make
-it private, make this image-only package public in GitHub package settings or
+Verify package visibility before anonymous host/recovery pulls. If the package
+is private, make this image-only package public in GitHub package settings or
 configure registry authentication on deployment and recovery hosts. Runtime
-secrets are not in this package; do not put a registry password in the image.
+secrets are not included; do not put a registry password in the image.
 
-The bootstrap deployment reference pins the validated candidate's digest with
-the intended Caddy version tag. Docker retrieves a tag+digest reference by
-digest; the plain version tag is only published by main after merge.
+Pin the deployment reference by digest. Docker retrieves a tag+digest reference
+by digest, while a version tag alone can resolve to a later build.
 
 Renovate groups official Caddy base-image and Caddy core updates. Module updates
 are independent PRs. Base-image digest changes trigger rebuilds even when their
