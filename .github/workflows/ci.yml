@@ -40,7 +40,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.14"
+          python-version: "3.15.2"
           cache: pip
           cache-dependency-path: requirements.txt
 
@@ -116,7 +116,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.14"
+          python-version: "3.15.2"
       - name: Install metadata parser
         run: pip install PyYAML
       - name: Run all real engine cases against disposable runner Docker
@@ -140,7 +140,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.14"
+          python-version: "3.15.2"
           cache: pip
           cache-dependency-path: requirements.txt
 
