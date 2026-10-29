@@ -12,10 +12,10 @@ optimized for **Fedora 43** running on a Netbird mesh network.
 |---|---|
 | Orchestration | Ansible (local-to-remote push model) |
 | Container engine | Docker CE (replacing Podman for consistent UID/GID mapping) |
-| Reverse proxy | Caddy with deSEC DNS-01 TLS |
+| Reverse proxy | Caddy with deSEC and Cloudflare DNS-01 TLS |
 | Identity provider | Authentik (SSO / OIDC / LDAP) |
 | Networking | Netbird mesh VPN |
-| DNS / DDNS | deSEC (dynamic DNS, updated every 15 min via cron) |
+| DNS / DDNS | deSEC legacy DDNS; independent Cloudflare DDNS for domain migration |
 | Secrets | Ansible Vault (AES-256) |
 
 Cloudflare domain migration starts with an independent, opt-in

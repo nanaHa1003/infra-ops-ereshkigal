@@ -18,10 +18,15 @@ Main builds publish a version tag (such as `2.11.7`) and an immutable build tag
 publish only immutable build tags for bootstrap validation. PR workflows never
 publish. There is no automated deployment to the homelab.
 
-The first GHCR package is private by default. Make this image-only package public
-in GitHub package settings before anonymous host/recovery pulls. Runtime secrets
-are not in this package. Alternatively configure registry authentication on all
-deployment and recovery hosts; do not put a registry password in the image.
+Verify package visibility before anonymous host/recovery pulls. The bootstrap
+image has been verified anonymously readable. If future package settings make
+it private, make this image-only package public in GitHub package settings or
+configure registry authentication on deployment and recovery hosts. Runtime
+secrets are not in this package; do not put a registry password in the image.
+
+The bootstrap deployment reference pins the validated candidate's digest with
+the intended Caddy version tag. Docker retrieves a tag+digest reference by
+digest; the plain version tag is only published by main after merge.
 
 Renovate groups official Caddy base-image and Caddy core updates. Module updates
 are independent PRs. Base-image digest changes trigger rebuilds even when their
