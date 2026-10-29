@@ -98,7 +98,7 @@ roles/<name>/
 | Pinchflat YouTube manager | `pinchflat` | `tube.ereshkigal.dedyn.io` |
 | Immich photos | `immich` | `photo.ereshkigal.dedyn.io` |
 | Mealie recipes | `mealie` | `cook.ereshkigal.dedyn.io` |
-| Homepage dashboard | `homepage` | `ereshkigal.dedyn.io` |
+| Homepage dashboard | `homepage` | `www.ereshkigal.cc` |
 | n8n automation | `n8n` | `auto.ereshkigal.dedyn.io` |
 | Aria2 downloads | `aria2` | RPC on port 6800 |
 

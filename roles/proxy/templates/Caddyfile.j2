@@ -33,16 +33,6 @@ auth.{{ domain }} {
     reverse_proxy http://authentik-server:9000
 }
 
-# 2. Main Homepage (Protected by Authentik)
-{{ domain }} {
-    import desec_tls
-    route {
-        reverse_proxy /outpost.goauthentik.io/* http://authentik-server:9000
-        import authentik_auth
-        reverse_proxy http://homepage:3000
-    }
-}
-
 # 3. WordPress (PHP-FPM setup)
 blog.{{ domain }} {
     import desec_tls
