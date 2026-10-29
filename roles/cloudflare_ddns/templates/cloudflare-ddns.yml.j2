@@ -1,0 +1,28 @@
+name: cloudflare-ddns
+
+services:
+  updater:
+    image: {{ cloudflare_ddns_image }}
+    restart: unless-stopped
+    user: "{{ cloudflare_ddns_uid }}:{{ cloudflare_ddns_gid }}"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      CLOUDFLARE_API_TOKEN_FILE: /run/secrets/cloudflare_api_token
+      DOMAINS: {{ cloudflare_ddns_hostname | to_json }}
+      IP4_PROVIDER: cloudflare.trace
+      IP6_PROVIDER: none
+      PROXIED: "false"
+      DELETE_ON_STOP: "false"
+      UPDATE_CRON: {{ cloudflare_ddns_schedule | to_json }}
+      TZ: {{ timezone | default('Asia/Taipei') | to_json }}
+    volumes:
+      - ./secrets/api_token:/run/secrets/cloudflare_api_token:ro,Z
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"

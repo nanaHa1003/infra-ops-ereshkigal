@@ -1,4 +1,12 @@
 ---
+- name: Require Cloudflare certificate token for parallel domains
+  ansible.builtin.assert:
+    that:
+      - vault_secrets.cloudflare.caddy_api_token | default('') | trim | length > 0
+    fail_msg: Set vault_secrets.cloudflare.caddy_api_token with Zone Read and DNS Edit for the public domain.
+  when: proxy_public_domain | default('') | length > 0
+  no_log: true
+
 - name: Create Caddy stack directory
   ansible.builtin.file:
     path: "{{ stack_root }}/proxy"

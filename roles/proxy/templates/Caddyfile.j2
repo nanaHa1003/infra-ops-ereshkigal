@@ -1,3 +1,12 @@
+{% if proxy_public_domain | default('') and proxy_cloudflare_cidrs | default([]) %}
+{
+    servers {
+        trusted_proxies static {{ proxy_cloudflare_cidrs | join(' ') }}
+        trusted_proxies_strict
+        client_ip_headers CF-Connecting-IP X-Forwarded-For
+    }
+}
+{% endif %}
 # --- Snippets ---
 (desec_tls) {
     tls {
@@ -10,6 +19,7 @@
 (authentik_auth) {
     forward_auth http://authentik-server:9000 {
         uri /outpost.goauthentik.io/auth/caddy
+        header_up X-Forwarded-For {client_ip}
         copy_headers X-Authentik-Username X-Authentik-Groups X-Authentik-Entitlements X-Authentik-Email X-Authentik-Name X-Authentik-Uid X-Authentik-Jwt X-Authentik-Meta-Jwks X-Authentik-Meta-Outpost X-Authentik-Meta-Provider X-Authentik-Meta-App X-Authentik-Meta-Version
         trusted_proxies private_ranges
     }
@@ -21,16 +31,6 @@
 auth.{{ domain }} {
     import desec_tls
     reverse_proxy http://authentik-server:9000
-}
-
-# 2. Main Homepage (Protected by Authentik)
-{{ domain }} {
-    import desec_tls
-    route {
-        reverse_proxy /outpost.goauthentik.io/* http://authentik-server:9000
-        import authentik_auth
-        reverse_proxy http://homepage:3000
-    }
 }
 
 # 3. WordPress (PHP-FPM setup)
@@ -63,3 +63,52 @@ auto.{{ domain }} {
     import desec_tls
     reverse_proxy http://n8n:5678
 }
+
+{% if proxy_public_domain | default('') %}
+# Parallel public aliases use Cloudflare DNS-01; no inbound ACME port is needed.
+(public_tls) {
+    tls {
+        dns cloudflare {{ vault_secrets.cloudflare.caddy_api_token }}
+    }
+}
+
+auth.{{ proxy_public_domain }} {
+    import public_tls
+    reverse_proxy http://authentik-server:9000 {
+        header_up X-Forwarded-For {client_ip}
+    }
+}
+
+www.{{ proxy_public_domain }} {
+    import public_tls
+    route {
+        reverse_proxy /outpost.goauthentik.io/* http://authentik-server:9000 {
+            header_up X-Forwarded-For {client_ip}
+        }
+        import authentik_auth
+        reverse_proxy http://homepage:3000 {
+            header_up X-Forwarded-For {client_ip}
+        }
+    }
+}
+
+blog.{{ proxy_public_domain }} {
+    import public_tls
+    root * /apps/wordpress
+    php_fastcgi wordpress:9000 {
+        root /var/www/html
+        env REMOTE_ADDR {client_ip}
+    }
+    file_server
+}
+
+{% for prefix, upstream in [('cook', 'mealie:9000'), ('tube', 'pinchflat:8945'), ('photo', 'immich-server:2283'), ('auto', 'n8n:5678')] %}
+{{ prefix }}.{{ proxy_public_domain }} {
+    import public_tls
+    reverse_proxy http://{{ upstream }} {
+        header_up X-Forwarded-For {client_ip}
+    }
+}
+
+{% endfor %}
+{% endif %}

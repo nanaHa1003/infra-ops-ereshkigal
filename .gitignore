@@ -37,3 +37,6 @@ __pycache__/
 .recovery/
 inventory/recovery.ini
 inventory/recovery-profile.yml
+
+# Local agent plans and discussion notes
+/docs/superpowers/

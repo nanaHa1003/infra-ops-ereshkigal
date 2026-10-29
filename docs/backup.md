@@ -3,43 +3,27 @@
 The separate `backup.yml` play manages three independent Restic jobs: off-site
 B2 database/configuration backups, local RustFS database/configuration backups,
 and local RustFS full-service backups including the explicitly selected media.
-The host inventory is the authoritative source allowlist. Upload, scratch
-restore, database verification and application recovery are separate milestones.
+The host inventory is the authoritative source allowlist. Verify uploads, scratch restores, database imports and application recovery
+separately.
 
-## Deployment and acceptance status (updated 2026-10-19)
+## Backup jobs
 
-The RustFS feature was merged into `main` via PR #20 (merge `99429e2`). The user
-completed deployment and a repeat run reported `ok=31 changed=0 failed=0`.
-Backup, maintenance and check timers are configured for the three jobs below;
-this records configuration and manual acceptance, not evidence that every
-scheduled backup/maintenance/check has subsequently run successfully.
+| Job | Destination | Scope | Schedule (Asia/Taipei) | External monitoring |
+| --- | --- | --- | --- | --- |
+| `database` | B2 | Databases and configuration | Every six hours at 00:00, 06:00, 12:00 and 18:00 | Healthchecks |
+| `rustfs_db` | RustFS | Databases and configuration | Every six hours at 00:20, 06:20, 12:20 and 18:20 | None |
+| `rustfs_files` | RustFS | Databases, configuration and selected service media | Daily at 02:00 | None |
 
-| Scope | Evidence obtained | Remaining limits |
-| --- | --- | --- |
-| B2 `database` | First backup and protected scratch restore succeeded; Healthchecks delivered failure and recovery emails. Mealie/Pinchflat SQLite integrity passed. Isolated production-dump imports matched n8n (0 workflows, 1 credential) and Authentik (9 users, 5 applications, 5 providers, 20 flows). | Production-dataset WordPress/Immich imports, n8n credential decryption and restored application login/recovery have not been established by these checks. |
-| RustFS `rustfs_db` | User completed a protected scratch restore on 2026-10-18. | A successful scratch restore is not application-level recovery acceptance. |
-| RustFS `rustfs_files` | Quiet retry completed on 2026-10-18 at 17:20 Asia/Taipei; completed snapshot short ID `1d9bb9fdc2fe`. Downloaded Immich photo/video, Mealie attachment and Pinchflat video samples all matched their source SHA-256 checks. | WordPress upload sample was skipped because no matching file up to 200 MiB was found. Sampling does not establish full-library completeness or application DB/media consistency. |
-| Cross-host recovery code | Container acceptance completed, including isolated synthetic database/n8n fixtures and media round trips. | No replacement-host production cutover, whole-machine reboot acceptance or measured production RTO. See [recovery.md](recovery.md). |
-
-The first full-media attempt failed the source-stability check; Immich media
-moves/additions were observed and mutable Mealie root logs needed exclusion.
-The failed snapshot stayed pending. After the log exclusion/diagnostic fix, the
-successful retry reused uploaded data and took about 44 seconds with about
-292 MB reported peak memory; this is not a clean first-upload benchmark.
-
-Still to observe/document: successful timer-triggered backups, maintenance and
-data checks for each job; a deliberately missed-ping alert; storage/runtime
-trends; and confirmation that recovery credentials are independently escrowed.
-Protected scratch restores contain secrets and require deliberate cleanup.
-Application upgrades remain postponed at the user's request. Authentik SMTP
-was separately confirmed by successful test-email receipt; this does not prove
-email or OIDC works in a restored application.
+Each job has independent credentials, repository state, locking and timers.
+Inspect each job's journal and snapshots separately. A completed upload does
+not establish application-level recoverability; use scratch restores and the
+[recovery procedure](recovery.md) to verify the required data and services.
 
 ## Configuration
 
 Run `backup.yml` separately from `site.yml`. Repository initialization is opt-in; backup jobs run through enabled timers or an explicit service start.
 Timers default to disabled. `backup_repositories` contains public URLs; `backup_jobs` associates each job with a repository, an explicit source list and optional schedule/retention overrides.
-The current ereshkigal host explicitly overrides `backup_timers_enabled: true` at the user's request.
+The current ereshkigal host explicitly overrides `backup_timers_enabled: true`.
 Applying `backup.yml` to this host enables its timers; override with `-e backup_timers_enabled=false` when only deploying inactive packaging.
 Different jobs can use different buckets or S3-compatible providers. Repository and job names are independent of object prefixes.
 
@@ -75,7 +59,7 @@ After repository initialization, merely editing `restic_password` does not rotat
 
 ## Database/configuration scope (`database` and `rustfs_db`)
 
-The host inventory is the authoritative allowlist. Verified source paths on the current deployment:
+The host inventory is the authoritative allowlist. Configured source paths:
 
 | Service | Export / configuration |
 | --- | --- |
@@ -92,7 +76,6 @@ The host inventory is the authoritative allowlist. Verified source paths on the 
 PostgreSQL dumps use each running database container's matching `pg_dump`, custom archive format and no ownership/ACL commands.
 The manifest records database/user/version/extensions and image reference. Use the backed-up Compose and off-host Vault to recreate the original application role and grants before a real recovery.
 MariaDB dumps include database creation, routines, events and triggers. Only InnoDB base tables are accepted; a nontransactional table fails the job rather than claiming a consistent backup.
-The current WordPress schema was checked read-only: InnoDB, and its configured user can export schema with routines/events/triggers.
 Mealie and Pinchflat use Python's SQLite online backup API and integrity checking; Pinchflat has an active WAL, which a plain file copy could miss.
 
 Files are copied from explicit roots, with symlinks rejected and change detection during each copy.
@@ -132,7 +115,7 @@ Database-only Immich restore cannot recover lost photos. The same limitation app
    Initialization defaults to off. An accessible repository is unchanged; only restic's explicit repository-missing exit 10 permits initialization.
    Wrong-password, permission and other errors fail without initialization or replacement. Older restic versions with ambiguous missing-repository exit 1 fail closed and require an explicit one-time `init` command.
    Direct server initialization remains available with `sudo /usr/local/libexec/homelab-backup/backup_runner.py init database`.
-   For S3 AccessDenied, verify the key's bucket and prefix exactly match the URL; for example `ereshkiagl/` and `ereshkigal/` are different scopes.
+   For S3 AccessDenied, verify the key's bucket and prefix exactly match the URL; including the spelling and trailing separator of the configured prefix.
 4. Run the first backup and view its status:
 
    ```bash
@@ -162,7 +145,7 @@ Database-only Immich restore cannot recover lost photos. The same limitation app
      -e backup_timers_enabled=true --ask-become-pass
    ```
 
-   Persist `backup_timers_enabled: true` in host vars after acceptance; otherwise a later ordinary backup play intentionally disables timers again.
+   Persist `backup_timers_enabled: true` in host vars after initial verification; otherwise a later ordinary backup play intentionally disables timers again.
    Check `systemctl list-timers 'homelab-backup*'` and verify a fresh snapshot after the first scheduled run.
 
 ## Database restore checks
@@ -171,7 +154,7 @@ Use an isolated disposable Docker host or containers with `--network none`, no p
 Never start the backed-up full Compose projects for this test: applications could run workflows, send mail or access production services.
 Record commands, image versions, sample counts and duration without recording credentials or application data.
 
-- PostgreSQL: use the database image/version from the manifest (currently Authentik PG16, n8n PG18, Immich PG14 with VectorChord/pgvecto.rs).
+- PostgreSQL: use the database image/version from the manifest rather than the currently deployed version.
   Create a fresh scratch database and load `database.dump` with `pg_restore --exit-on-error --no-owner --no-acl` via stdin.
   Use matching extension libraries and preload settings for Immich; a generic postgres image is insufficient.
   Query application tables and compare representative counts, including n8n workflows/credentials, against the source baseline.
@@ -184,7 +167,7 @@ Record commands, image versions, sample counts and duration without recording cr
   Verify decryption in an isolated, version-matched n8n process with no production networking and workflows inactive; do not emit credential plaintext into logs.
 - Restore file owners/modes and SELinux labels on a real recovery using the intended application roles. Export files are deliberately root-only, rather than original application permissions.
 
-Only mark these checks complete after executing them. Local automated tests prove a restic/SQLite round trip and orchestration failure behavior; they cannot prove the production datasets restore correctly.
+Run these checks against the selected production snapshot; synthetic test data cannot establish production recoverability.
 Protected restore scratch files contain secrets and require deliberate cleanup after inspection; do not leave them on a shared filesystem.
 
 ## B2 scheduling, retention and monitoring
@@ -213,11 +196,9 @@ Review runtime, transferred bytes, B2 billed usage and retained versions after o
 
 ## Independent RustFS service backups
 
-The RustFS extension adds two local jobs alongside the existing B2 `database`
-job. Deployment, production backups and sample restores have completed as
-recorded above; full application-level recovery remains a separate milestone.
-Hecate and Ereshkigal are at the same location, so local media protection is not
-an off-site media copy. Application upgrades remain out of scope.
+RustFS provides two local jobs alongside the B2 `database` job. Hecate and
+Ereshkigal are at the same location, so these media backups do not provide
+off-site protection.
 
 | Job | Repository | Schedule (Asia/Taipei) | Monitoring |
 | --- | --- | --- | --- |
@@ -286,7 +267,7 @@ maintenance/check reports failure in its journal and can be retried; it never
 prunes during an active backup. Retention is 48h/14 daily/8 weekly/12 monthly for
 DB jobs, and 48h/14 daily/8 weekly/6 monthly for full service data.
 
-### Deployment and first acceptance
+### Deployment and initial verification
 
 If upgrading the old globally locked runner, let existing backup services finish
 before deploying. The migration refuses to stop an active operation. Deploy
@@ -330,20 +311,18 @@ new protected scratch directory, never live application paths. For substantial
 scratch restores, verify free space first or use the separate cross-host recovery
 flow with approved storage. Check sample media hashes/openability, SQLite data,
 DB imports and service-specific DB/media references before declaring acceptance.
-The repository smoke test established small-object and Restic compatibility,
-not first production backup success or sustained full-data performance.
 
-## Follow-up priorities and scope boundary
+## Routine checks
 
-1. Observe timer-triggered backup, maintenance and data-check results for all
-   three jobs. Review journal failures and success-marker age; local jobs have
-   no external missed-run alert by design.
-2. Confirm independent recovery records for Restic passwords, repository URLs,
-   storage access, encrypted Vault/controller configuration and Vault unlock
-   method. Do not store the only recovery copy on either backup host.
-3. Record storage growth, backup/check duration and B2 billed versions before
-   changing retention or frequency. Review protected scratch data before cleanup.
-4. Resume application/image update review when requested. n8n uses PG18;
-   Authentik currently uses PG16. They are separate upgrade decisions.
-5. A replacement-host cutover drill and off-site media protection remain future
-   work; Container acceptance is the agreed completed development gate.
+- Inspect timer-triggered backups, maintenance and data-check results for each
+  job. Review journal failures and success-marker age. Local jobs have no
+  external missed-run alert.
+- Keep independent recovery records for Restic passwords, repository URLs,
+  storage credentials, encrypted Vault/controller configuration and the Vault
+  unlock method. Do not keep the only recovery copy on either backup host.
+- Monitor storage growth, operation duration and B2 billed versions before
+  changing retention or frequency.
+- Restore samples and test database imports periodically. Validate application
+  login and database/media references before activating restored services.
+- Review and remove protected scratch restores when they are no longer needed;
+  they contain configuration secrets and database contents.

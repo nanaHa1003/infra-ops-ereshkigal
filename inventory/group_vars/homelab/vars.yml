@@ -9,6 +9,9 @@ stack_root: "/opt/stack"
 # Root directory for persistent service data (volumes)
 storage_root: "/mnt/storage"
 
+# Parallel Caddy aliases only; keep application settings on the legacy domain.
+proxy_public_domain: "ereshkigal.cc"
+
 # Services enabled on this group. Each entry maps to a role of the same name.
 # Omit a service to skip deployment; use down.yml --tags <role> to stop it.
 enabled_services:
@@ -21,6 +24,7 @@ enabled_services:
   - homepage
   - n8n
   - aria2
+  - cloudflare_ddns
 
 # Normal deployment reconciles existing images. Opt in to pulling updates.
 pull_images: false

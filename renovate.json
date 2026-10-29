@@ -1,52 +1,117 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:base"],
-
+  "extends": [
+    "config:recommended"
+  ],
   "prConcurrentLimit": 3,
   "minimumReleaseAge": "5 days",
-  "schedule": ["every weekend"],
-
+  "schedule": [
+    "every weekend"
+  ],
   "packageRules": [
     {
       "description": "Keep application minor, patch and digest updates independent for deployment review",
-      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "digest"
+      ],
       "groupName": null
     },
     {
       "description": "Group non-major CI tooling updates separately from application updates",
-      "matchManagers": ["github-actions"],
-      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "digest"
+      ],
       "groupName": "CI tooling updates"
     },
     {
       "description": "Keep major version updates in individual PRs for explicit migration review",
-      "matchUpdateTypes": ["major"],
+      "matchUpdateTypes": [
+        "major"
+      ],
       "groupName": null
     },
     {
       "description": "Require an explicit migration plan before changing the PostgreSQL image major version",
-      "matchDatasources": ["docker"],
-      "matchPackageNames": ["postgres"],
-      "matchUpdateTypes": ["major"],
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "postgres"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
       "enabled": false
     },
     {
       "description": "Temporarily keep CI Python below 3.15: current Ansible CLI fails on removed dataclasses internals; revisit after compatibility validation",
-      "matchManagers": ["github-actions"],
-      "matchPackageNames": ["python"],
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchPackageNames": [
+        "python"
+      ],
       "allowedVersions": "<3.15",
       "groupName": null
+    },
+    {
+      "description": "Keep official Caddy images and xcaddy Caddy version in sync",
+      "matchPackageNames": [
+        "caddy",
+        "caddyserver/caddy"
+      ],
+      "groupName": "Caddy build dependencies"
+    },
+    {
+      "description": "Track official Caddy base rebuilds as digest updates",
+      "matchManagers": [
+        "dockerfile"
+      ],
+      "matchPackageNames": [
+        "caddy"
+      ],
+      "pinDigests": true
+    },
+    {
+      "description": "Deploy custom Caddy releases with a reviewed immutable digest",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "ghcr.io/nanaha1003/infra-ops-ereshkigal/caddy-dns"
+      ],
+      "pinDigests": true
     }
   ],
-
-  "regexManagers": [
+  "customManagers": [
     {
-      "description": "All role defaults — single rule covers every *_image variable with embedded tag",
-      "fileMatch": ["^roles/.*/defaults/main\\.yml$"],
+      "customType": "regex",
+      "description": "Role image variables including optional registry digest",
       "matchStrings": [
-        "\\w+_image:\\s*\"(?<depName>[^:\"]+):(?<currentValue>[^\"\\n]+)\""
+        "\\w+_image:\\s*\"(?<depName>[^:\"]+):(?<currentValue>[^\"\\n@]+)(?:@(?<currentDigest>sha256:[a-f0-9]{64}))?\""
       ],
-      "datasourceTemplate": "docker"
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "docker",
+      "managerFilePatterns": [
+        "/^roles/.*/defaults/main\\.yml$/"
+      ]
+    },
+    {
+      "customType": "regex",
+      "description": "Pinned xcaddy core and DNS module versions",
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>github-releases|github-tags) depName=(?<depName>[^\\s]+)\\s+ARG \\w+_VERSION=(?<currentValue>\\S+)"
+      ],
+      "managerFilePatterns": [
+        "/^images/caddy/Dockerfile$/"
+      ]
     }
   ]
 }
