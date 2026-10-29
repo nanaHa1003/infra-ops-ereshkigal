@@ -20,10 +20,10 @@ class ParallelDomains(unittest.TestCase):
         for prefix in ('auth.', 'blog.', 'cook.', 'tube.', 'photo.', 'auto.'):
             self.assertIn(prefix + 'ereshkigal.dedyn.io {', config)
             self.assertIn(prefix + 'ereshkigal.cc {', config)
-        self.assertIn('ereshkigal.dedyn.io {', config)
+        self.assertNotIn('\nereshkigal.dedyn.io {', config)
         self.assertIn('www.ereshkigal.cc {', config)
         self.assertNotIn('\nereshkigal.cc {', config)
-        self.assertEqual(config.count('import desec_tls'), 7)
+        self.assertEqual(config.count('import desec_tls'), 6)
         self.assertEqual(config.count('import public_tls'), 7)
         self.assertIn('dns cloudflare ' + 'A' * 40, config)
         self.assertNotIn('disable_tlsalpn_challenge', config)
