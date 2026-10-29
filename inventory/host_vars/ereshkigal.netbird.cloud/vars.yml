@@ -74,6 +74,7 @@ backup_jobs:
       - {id: homepage-compose, kind: files, path: "{{ stack_root }}/homepage/docker-compose.yml"}
       - {id: n8n-compose, kind: files, path: "{{ stack_root }}/n8n/docker-compose.yml"}
       - {id: aria2-compose, kind: files, path: "{{ stack_root }}/aria2/docker-compose.yml"}
+      - {id: cloudflare-ddns-compose, kind: files, path: "{{ stack_root }}/cloudflare-ddns/docker-compose.yml"}
 
   rustfs_db:
     repository: rustfs_db

@@ -34,6 +34,10 @@ recovery_service_registry:
         kind: files
         layout: reference
         required: true
+      cloudflare-ddns-compose:
+        kind: files
+        layout: reference
+        required: true
     storage_prefix: caddy
   auth:
     sources:
