@@ -9,7 +9,7 @@
         that:
           - enabled_services is sequence
           - enabled_services is not string
-          - enabled_services | difference(['proxy', 'auth', 'wordpress', 'pinchflat', 'immich', 'mealie', 'homepage', 'n8n', 'aria2']) | length == 0
+          - enabled_services | difference(['proxy', 'auth', 'wordpress', 'pinchflat', 'immich', 'mealie', 'homepage', 'n8n', 'aria2', 'cloudflare_ddns']) | length == 0
         fail_msg: "enabled_services must be a list of supported role names."
       tags: [always]
 
@@ -27,7 +27,7 @@
       tags: [common]
 
     - role: cloudflare_ddns
-      when: cloudflare_ddns_enabled | default(false) | bool
+      when: "'cloudflare_ddns' in enabled_services"
       tags: [cloudflare_ddns]
 
     # Infrastructure layer: reverse proxy, TLS, Docker socket proxies

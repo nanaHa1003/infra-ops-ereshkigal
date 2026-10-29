@@ -25,9 +25,9 @@ Deploy on the existing Docker host:
 ANSIBLE_HOST_KEY_CHECKING=True ansible-playbook cloudflare-ddns.yml --ask-become-pass
 ```
 
-Run twice to verify idempotency. To include it in normal site.yml runs, set
-`cloudflare_ddns_enabled: true` in host/group variables after credentials exist.
-Use `--tags cloudflare_ddns` to run only the new role in site.yml.
+Run twice to verify idempotency. The role is included in the host's
+`enabled_services`, so ordinary `site.yml` runs reconcile it. Use
+`--tags cloudflare_ddns` to run only this role through `site.yml`.
 
 Verification on Ereshkigal:
 
