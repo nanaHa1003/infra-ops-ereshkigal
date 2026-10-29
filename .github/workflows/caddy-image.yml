@@ -3,7 +3,7 @@ name: Caddy image
 
 on:
   push:
-    branches: [main, feature/cloudflare-ddns]
+    branches: [main]
     paths:
       - images/caddy/**
       - roles/proxy/templates/Caddyfile.j2
@@ -54,10 +54,7 @@ jobs:
 
   publish:
     needs: validate
-    if: >-
-      github.event_name != 'pull_request' &&
-      (github.ref == 'refs/heads/main' ||
-       (github.event_name == 'push' && github.ref == 'refs/heads/feature/cloudflare-ddns'))
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read

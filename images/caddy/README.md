@@ -14,9 +14,10 @@ multi-architecture image with SBOM and build provenance to:
 `ghcr.io/nanaha1003/infra-ops-ereshkigal/caddy-dns`
 
 Main builds publish a version tag (such as `2.11.7`) and an immutable build tag
-(`2.11.7-build-RUN_ID-ATTEMPT`). Initial feature/cloudflare-ddns push builds may
-publish only immutable build tags for bootstrap validation. PR workflows never
-publish. There is no automated deployment to the homelab.
+(`2.11.7-build-RUN_ID-ATTEMPT`). The initial feature build published an immutable
+bootstrap candidate; that temporary branch publication path has been removed.
+Only main can publish now. PR workflows validate but never publish. There is no
+automated deployment to the homelab.
 
 Verify package visibility before anonymous host/recovery pulls. The bootstrap
 image has been verified anonymously readable. If future package settings make

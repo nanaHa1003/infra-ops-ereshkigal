@@ -16,6 +16,7 @@ uses a registry digest so backup/recovery retain a retrievable image.
   and finish deployment instructions. Production cutover requires populated
   caddy_api_token and the user's interactive sudo deployment.
 
-The first build on feature/cloudflare-ddns may publish an immutable candidate
-tag for validation. Only main builds advance the production version tag. No
-workflow runs Ansible against the homelab.
+The first feature build published an immutable bootstrap candidate. The
+temporary branch publication permission is now removed; only main can publish
+further images or advance the version tag. No workflow runs Ansible against
+the homelab.
