@@ -71,7 +71,7 @@ The host inventory is the authoritative allowlist. Configured source paths:
 | Pinchflat | `/mnt/storage/pinchflat/config/db/pinchflat.db`, extras including cookies, Compose |
 | Homepage | persisted config, Compose |
 | Aria2 | config/settings/scripts/filter and Compose; downloads and session excluded |
-| Proxy/DDNS | both proxy Compose manifests, Caddyfile, Caddy data/config including TLS private keys, root-only DDNS script |
+| Proxy/DDNS | proxy and socket proxy Compose manifests, Caddyfile/data/config, deSEC update script, Cloudflare DDNS Compose |
 
 PostgreSQL dumps use each running database container's matching `pg_dump`, custom archive format and no ownership/ACL commands.
 The manifest records database/user/version/extensions and image reference. Use the backed-up Compose and off-host Vault to recreate the original application role and grants before a real recovery.
@@ -80,7 +80,7 @@ Mealie and Pinchflat use Python's SQLite online backup API and integrity checkin
 
 Files are copied from explicit roots, with symlinks rejected and change detection during each copy.
 The job is not a cross-service or filesystem-wide point-in-time snapshot. Avoid plugin/theme updates or configuration deployments during a backup.
-All required sources must succeed before upload. Missing optional sources are recorded explicitly in the manifest.
+All required sources must succeed before upload. Missing optional sources are recorded explicitly in the manifest. The Cloudflare DDNS Compose file is backed up; its API token remains in Vault and is not part of the file sources.
 
 Aria2's `superng6/aria2` image reads the RPC token from `SECRET`, which overrides
 `rpc-secret` in its configuration file. The Compose template passes the Vault token
