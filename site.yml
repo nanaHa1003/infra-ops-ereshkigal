@@ -26,6 +26,10 @@
     - role: common
       tags: [common]
 
+    - role: cloudflare_ddns
+      when: cloudflare_ddns_enabled | default(false) | bool
+      tags: [cloudflare_ddns]
+
     # Infrastructure layer: reverse proxy, TLS, Docker socket proxies
     - role: proxy
       when: "'proxy' in enabled_services"

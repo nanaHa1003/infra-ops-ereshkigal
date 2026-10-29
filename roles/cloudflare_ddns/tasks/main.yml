@@ -1,0 +1,50 @@
+---
+- name: Validate Cloudflare DDNS credentials
+  ansible.builtin.assert:
+    that:
+      - vault_secrets.cloudflare.ddns_api_token is defined
+      - vault_secrets.cloudflare.ddns_api_token | default('') | trim | length > 0
+    fail_msg: Set vault_secrets.cloudflare.ddns_api_token to a token with DNS Edit for ereshkigal.cc.
+  no_log: true
+
+- name: Create Cloudflare DDNS stack directory
+  ansible.builtin.file:
+    path: "{{ stack_root }}/cloudflare-ddns"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Create protected Cloudflare DDNS secret directory
+  ansible.builtin.file:
+    path: "{{ stack_root }}/cloudflare-ddns/secrets"
+    state: directory
+    owner: root
+    group: "{{ cloudflare_ddns_gid }}"
+    mode: '0750'
+
+- name: Deploy Cloudflare DDNS API token
+  ansible.builtin.copy:
+    content: "{{ vault_secrets.cloudflare.ddns_api_token | trim }}\n"
+    dest: "{{ stack_root }}/cloudflare-ddns/secrets/api_token"
+    owner: root
+    group: "{{ cloudflare_ddns_gid }}"
+    mode: '0440'
+  no_log: true
+  diff: false
+  register: cloudflare_ddns_token
+
+- name: Deploy Cloudflare DDNS Compose
+  ansible.builtin.template:
+    src: cloudflare-ddns.yml.j2
+    dest: "{{ stack_root }}/cloudflare-ddns/docker-compose.yml"
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Start Cloudflare DDNS
+  community.docker.docker_compose_v2:
+    project_src: "{{ stack_root }}/cloudflare-ddns"
+    state: present
+    pull: "{{ 'always' if pull_images | default(false) | bool else 'missing' }}"
+    recreate: "{{ 'always' if cloudflare_ddns_token.changed or force_restart | default(false) | bool else 'auto' }}"

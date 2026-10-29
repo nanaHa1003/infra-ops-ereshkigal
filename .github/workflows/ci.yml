@@ -96,6 +96,11 @@ jobs:
           ansible-playbook backup.yml --syntax-check
           -i inventory/hosts.ini.example
 
+      - name: Syntax check — cloudflare-ddns.yml
+        run: >
+          ansible-playbook cloudflare-ddns.yml --syntax-check
+          -i inventory/hosts.ini.example
+
       - name: Syntax check — recover.yml
         run: >
           ansible-playbook recover.yml --syntax-check

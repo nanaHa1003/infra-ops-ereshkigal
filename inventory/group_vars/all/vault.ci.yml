@@ -3,6 +3,9 @@
 # Contains no real credentials. Safe to commit.
 # Used in CI by symlinking this file over vault.yml before running lint.
 vault_secrets:
+  cloudflare:
+    ddns_api_token: "ci-cloudflare-ddns-token"
+    caddy_api_token: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
   desec:
     login: "ci-user@example.com"
     api_token: "ci-token"

@@ -18,6 +18,12 @@ optimized for **Fedora 43** running on a Netbird mesh network.
 | DNS / DDNS | deSEC (dynamic DNS, updated every 15 min via cron) |
 | Secrets | Ansible Vault (AES-256) |
 
+Cloudflare domain migration starts with an independent, opt-in
+[Cloudflare DDNS deployment](docs/cloudflare-ddns.md) for `origin.ereshkigal.cc`.
+Existing deSEC DDNS and application URLs remain active during preparation.
+For keeping both domains reachable during individual application migrations,
+see [parallel Caddy domains](docs/caddy-domain-migration.md).
+
 ---
 
 ## Project Structure

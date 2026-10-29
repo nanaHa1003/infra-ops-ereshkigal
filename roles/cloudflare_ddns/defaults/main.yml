@@ -1,0 +1,6 @@
+---
+cloudflare_ddns_image: "favonia/cloudflare-ddns:1.18.0"
+cloudflare_ddns_hostname: "origin.ereshkigal.cc"
+cloudflare_ddns_schedule: "@every 5m"
+cloudflare_ddns_uid: 1000
+cloudflare_ddns_gid: 1000

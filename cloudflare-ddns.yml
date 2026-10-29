@@ -1,0 +1,7 @@
+---
+- name: Configure Cloudflare IPv4 DDNS
+  hosts: homelab
+  become: true
+  roles:
+    - role: cloudflare_ddns
+      tags: [cloudflare_ddns]

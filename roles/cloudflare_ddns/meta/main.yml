@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  author: nanaha1003
+  description: Maintain a Cloudflare IPv4 DNS record using a scoped file-backed API token.
+  license: MIT
+  min_ansible_version: "2.15"
+dependencies: []
