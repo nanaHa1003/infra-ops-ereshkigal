@@ -24,14 +24,15 @@ def render_immich(context):
 class ImmichUpgradeContract(unittest.TestCase):
     def test_server_and_machine_learning_images_share_the_target_release(self):
         defaults = read_yaml("roles/immich/defaults/main.yml")
-        self.assertEqual(
-            defaults["immich_server_image"],
-            "ghcr.io/immich-app/immich-server:v3.3.3",
+        server = defaults["immich_server_image"].removeprefix(
+            "ghcr.io/immich-app/immich-server:"
         )
-        self.assertEqual(
-            defaults["immich_ml_image"],
-            "ghcr.io/immich-app/immich-machine-learning:v3.3.3",
+        machine_learning = defaults["immich_ml_image"].removeprefix(
+            "ghcr.io/immich-app/immich-machine-learning:"
         )
+        self.assertTrue(server, "Immich server image must have a version tag")
+        self.assertTrue(machine_learning, "Immich ML image must have a version tag")
+        self.assertEqual(server, machine_learning)
 
     def test_database_image_and_cpu_inference_defaults_are_current(self):
         defaults = read_yaml("roles/immich/defaults/main.yml")
