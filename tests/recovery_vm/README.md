@@ -1,7 +1,7 @@
 # Optional host rehearsal — not required for container acceptance
 
 This is a manual acceptance gate, not an executed result. Never substitute the
-production host or claim that the Fedora40 Molecule container proves SELinux.
+production host or claim that the Fedora 40 Molecule container proves SELinux.
 Use an empty, disposable Fedora43 x86_64 VM, dedicated mounted test disk, enforcing
 SELinux, SSH/sudo and no production network/DNS/B2 credentials. The controller
 must use only synthetic Vault fields and `.example` domains.
