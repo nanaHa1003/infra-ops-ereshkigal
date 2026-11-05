@@ -15,7 +15,7 @@ driver:
 
 platforms:
   - name: homelab-test
-    image: "geerlingguy/docker-fedora40-ansible:latest"
+    image: "geerlingguy/docker-fedora44-ansible:latest"
     pre_build_image: true
     privileged: true
     command: /sbin/init
