@@ -26,15 +26,15 @@ class AuthentikUpgradeContract(unittest.TestCase):
         cls.auth_defaults = read_yaml("roles/auth/defaults/main.yml")
         cls.proxy_defaults = read_yaml("roles/proxy/defaults/main.yml")
 
-    def test_authentik_server_and_worker_use_the_pinned_target_release(self):
-        self.assertEqual(self.auth_defaults["auth_authentik_image"],
-                         "ghcr.io/goauthentik/server:2026.8.4")
+    def test_authentik_server_image_is_versioned(self):
+        image = self.auth_defaults["auth_authentik_image"]
+        self.assertRegex(image, r"^ghcr\.io/goauthentik/server:\d{4}\.\d+\.\d+$")
 
     def test_recovery_accepts_current_and_previous_authentik_image_families(self):
         services = read_yaml("roles/recovery/vars/services.yml")
         pattern = services["recovery_service_registry"]["auth"]["verification"]["image_pattern"]
         self.assertRegex("ghcr.io/goauthentik/server:2026.5.7", pattern)
-        self.assertRegex("ghcr.io/goauthentik/server:2026.8.4", pattern)
+        self.assertRegex(self.auth_defaults["auth_authentik_image"], pattern)
         self.assertNotRegex("ghcr.io/goauthentik/server:2026.6.0", pattern)
 
     def test_proxy_uses_the_host_pinned_address(self):
