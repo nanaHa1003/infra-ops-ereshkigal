@@ -13,7 +13,7 @@ services:
     networks:
       - backend
     volumes:
-      - {{ storage_root }}/authentik/postgresql:/var/lib/postgresql/data:Z
+      - {{ storage_root }}/authentik/postgresql:/var/lib/postgresql:Z
     environment:
       POSTGRES_PASSWORD: {{ vault_secrets.authentik.pgpass }}
       POSTGRES_USER: authentik
