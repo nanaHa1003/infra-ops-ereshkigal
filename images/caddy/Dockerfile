@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM caddy:2.11.8-builder-alpine AS builder
+FROM --platform=$BUILDPLATFORM caddy:2.11.9-builder-alpine AS builder
 
 # renovate: datasource=github-releases depName=caddyserver/caddy
 ARG CADDY_VERSION=v2.11.9
@@ -13,7 +13,7 @@ RUN GOOS="$TARGETOS" GOARCH="$TARGETARCH" CGO_ENABLED=0 xcaddy build "$CADDY_VER
     --with "github.com/caddy-dns/desec@$DESEC_VERSION" \
     --output /usr/bin/caddy
 
-FROM caddy:2.11.8-alpine
+FROM caddy:2.11.9-alpine
 COPY --from=builder /usr/bin/caddy /usr/bin/caddy
 LABEL org.opencontainers.image.source="https://github.com/nanaHa1003/infra-ops-ereshkigal" \
       org.opencontainers.image.description="Caddy with pinned Cloudflare and deSEC DNS providers"
