@@ -80,14 +80,14 @@
       "pinDigests": true
     },
     {
-      "description": "Deploy custom Caddy releases with a reviewed immutable digest",
+      "description": "Caddy release workflow owns deployment digest PRs; Renovate manages only its build dependencies",
       "matchDatasources": [
         "docker"
       ],
       "matchPackageNames": [
         "ghcr.io/nanaha1003/infra-ops-ereshkigal/caddy-dns"
       ],
-      "pinDigests": true
+      "enabled": false
     }
   ],
   "customManagers": [
