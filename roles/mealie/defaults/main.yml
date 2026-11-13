@@ -1,7 +1,7 @@
 ---
 # Default variables for the mealie role.
 
-mealie_image: "ghcr.io/mealie-recipes/mealie:v3.30.0"
+mealie_image: "ghcr.io/mealie-recipes/mealie:v3.31.0"
 mealie_openai_model: "~anthropic/claude-haiku-latest"
 mealie_openai_audio_model: "google/gemini-2.5-flash"
 mealie_memory_limit: "1000M"
