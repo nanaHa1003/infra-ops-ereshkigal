@@ -6,8 +6,6 @@ on:
     branches: [main]
     paths:
       - images/caddy/**
-      - roles/proxy/templates/Caddyfile.j2
-      - roles/proxy/defaults/main.yml
       - .github/workflows/caddy-image.yml
   pull_request:
     paths:
@@ -59,6 +57,10 @@ jobs:
     permissions:
       contents: read
       packages: write
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+      version: ${{ steps.meta.outputs.version }}
+      digest: ${{ steps.build.outputs.digest }}
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v4
@@ -69,6 +71,7 @@ jobs:
         run: |
           image="ghcr.io/${SOURCE_REPOSITORY,,}/caddy-dns"
           version=$(sed -n 's/^ARG CADDY_VERSION=v//p' images/caddy/Dockerfile)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
           immutable="$image:$version-build-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           echo "image=$image" >> "$GITHUB_OUTPUT"
           {
@@ -103,3 +106,113 @@ jobs:
           IMAGE: ${{ steps.meta.outputs.image }}
           DIGEST: ${{ steps.build.outputs.digest }}
         run: echo "Deployment reference = $IMAGE@$DIGEST" >> "$GITHUB_STEP_SUMMARY"
+
+  verify-published:
+    name: Verify published Caddy (${{ matrix.runner }})
+    needs: publish
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-latest, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.15.2'
+      - run: pip install Jinja2 PyYAML
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Validate the published digest on its native architecture
+        env:
+          IMAGE_REF: ${{ needs.publish.outputs.image }}@${{ needs.publish.outputs.digest }}
+        run: |
+          docker pull "$IMAGE_REF"
+          python images/caddy/validate.py "$IMAGE_REF"
+
+  propose-deployment:
+    name: Propose Caddy deployment
+    needs: [publish, verify-published]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Refuse a deployment proposal from superseded build inputs
+        env:
+          RELEASE_SHA: ${{ github.sha }}
+        run: |
+          git diff --exit-code "$RELEASE_SHA" HEAD -- images/caddy/
+      - name: Update only the deployment image reference
+        env:
+          IMAGE: ${{ needs.publish.outputs.image }}
+          VERSION: ${{ needs.publish.outputs.version }}
+          DIGEST: ${{ needs.publish.outputs.digest }}
+        run: |
+          python - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          image, version, digest = (os.environ[key] for key in ('IMAGE', 'VERSION', 'DIGEST'))
+          if not re.fullmatch(r'ghcr\.io/[a-z0-9_.\-/]+/caddy-dns', image):
+              raise SystemExit('Invalid image repository')
+          if not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+', version):
+              raise SystemExit('Invalid Caddy version')
+          if not re.fullmatch(r'sha256:[a-f0-9]{64}', digest):
+              raise SystemExit('Invalid published digest')
+          path = Path('roles/proxy/defaults/main.yml')
+          updated, count = re.subn(
+              r'^proxy_caddy_image:.*$',
+              f'proxy_caddy_image: "{image}:{version}@{digest}"',
+              path.read_text(), flags=re.MULTILINE,
+          )
+          if count != 1:
+              raise SystemExit('Expected exactly one proxy_caddy_image variable')
+          path.write_text(updated)
+          PY
+      - name: Create or update the deployment PR
+        id: proposal
+        uses: peter-evans/create-pull-request@v8
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          base: main
+          branch: automation/caddy-deployment
+          add-paths: roles/proxy/defaults/main.yml
+          commit-message: "chore(deps): update Caddy deployment image"
+          title: "chore(deps): deploy Caddy ${{ needs.publish.outputs.version }}"
+          body: |
+            Update Caddy to the published digest verified on amd64 and arm64.
+
+            Image: `${{ needs.publish.outputs.image }}:${{ needs.publish.outputs.version }}@${{ needs.publish.outputs.digest }}`
+
+            Build source: `${{ github.sha }}`
+            Build and validation: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            Review and merge manually, then deploy with:
+            `ansible-playbook site.yml -i inventory/hosts.ini --tags proxy`
+
+            Merging this PR does not publish another image. Future successful builds update this PR while it remains open.
+          delete-branch: true
+      - name: Run CI for the bot-generated commit
+        if: steps.proposal.outputs.pull-request-operation == 'created' || steps.proposal.outputs.pull-request-operation == 'updated'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: gh workflow run ci.yml --ref automation/caddy-deployment
+      - name: Record deployment PR
+        if: steps.proposal.outputs.pull-request-number != ''
+        env:
+          PR_URL: ${{ steps.proposal.outputs.pull-request-url }}
+        run: echo "Manual deployment approval PR = $PR_URL" >> "$GITHUB_STEP_SUMMARY"

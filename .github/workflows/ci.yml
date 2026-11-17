@@ -6,6 +6,8 @@ on:
     branches: ["main", "feature/*", "fix/*"]
   pull_request:
     branches: ["main"]
+  # Bot pushes do not trigger push CI; the Caddy release workflow dispatches it.
+  workflow_dispatch:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
