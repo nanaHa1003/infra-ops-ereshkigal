@@ -15,7 +15,7 @@ SCHEMAS = {
     'n8n': (r':2\.28\.', {'workflows':'workflow_entity', 'credentials':'credentials_entity'}),
     'immich': (r':v2\.', {'assets':'asset', 'users':'user', 'albums':'album'}),
     'mealie': (r':v3\.', {'recipes':'recipes','users':'users'}),
-    'pinchflat': (r':v2026\.', {'sources':'sources','profiles':'media_profiles'}),
+    'pinchflat': (r':v?[0-9]{4}\.[0-9]+\.[0-9]+(?:@sha256:[a-f0-9]{64})?$', {'sources':'sources','profiles':'media_profiles'}),
 }
 
 

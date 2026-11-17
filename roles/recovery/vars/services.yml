@@ -191,7 +191,7 @@ recovery_service_registry:
         required: false
     storage_prefix: pinchflat
     verification:
-      image_pattern: :v2026\.
+      image_pattern: ':v?[0-9]{4}\.[0-9]+\.[0-9]+(?:@sha256:[a-f0-9]{64})?$'
       tables:
         sources: sources
         profiles: media_profiles
