@@ -1,7 +1,7 @@
 ---
 # Default variables for the pinchflat role.
 
-pinchflat_image: "ghcr.io/communitymaintained/pinchflat:latest"
+pinchflat_image: "ghcr.io/thebadfella/pinchflat-ngx:2026.11.2"
 
 # Force re-deploy even when no template changes are detected
 pinchflat_force_restart: "{{ force_restart | default(false) | bool }}"
