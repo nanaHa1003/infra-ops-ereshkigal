@@ -1,7 +1,7 @@
 ---
 # Default variables for the proxy role.
 
-proxy_caddy_image: "ghcr.io/nanaha1003/infra-ops-ereshkigal/caddy-dns:2.11.9@sha256:752c96da196930647c1383cc817441552365ab04112a486ee855d75d33c788df"
+proxy_caddy_image: "ghcr.io/nanaha1003/infra-ops-ereshkigal/caddy-dns:2.11.9@sha256:95cd47785f57241299672b3ac4632c5eda3ce799c3398827cd3d56ef51e744e3"
 proxy_socket_proxy_image: "linuxserver/socket-proxy:latest"
 proxy_caddy_ipv4_address: ""
 
