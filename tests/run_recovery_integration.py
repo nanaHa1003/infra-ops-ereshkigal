@@ -1,11 +1,11 @@
-"""CI gate: all five real-engine cases must execute; dependency skips fail."""
+"""CI gate: all six real-engine cases must execute; dependency skips fail."""
 import os
 from pathlib import Path
 import unittest
 
 def require_matrix(result):
-    if result.testsRun != 5 or result.skipped or not result.wasSuccessful():
-        raise RuntimeError('expected five real recovery integration cases, all passing without skips')
+    if result.testsRun != 6 or result.skipped or not result.wasSuccessful():
+        raise RuntimeError('expected six real recovery integration cases, all passing without skips')
 
 if __name__=='__main__':
     if os.environ.get('HOMELAB_RECOVERY_INTEGRATION')!='1': raise SystemExit('explicit integration flag required')

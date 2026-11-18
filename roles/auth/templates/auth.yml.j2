@@ -11,7 +11,7 @@ services:
       retries: 5
       timeout: 5s
     networks:
-      - backend
+      - data
     volumes:
       - {{ storage_root }}/authentik/postgresql:/var/lib/postgresql:Z
     environment:
@@ -30,7 +30,7 @@ services:
       retries: 5
       timeout: 3s
     networks:
-      - backend
+      - data
     volumes:
       - {{ storage_root }}/authentik/redis:/data:Z
 
@@ -40,6 +40,7 @@ services:
     command: server
     networks:
       - backend
+      - data
     environment: &authentik-environment
       AUTHENTIK_SECRET_KEY: {{ vault_secrets.authentik.secret_key }}
       AUTHENTIK_REDIS__HOST: redis
@@ -75,7 +76,7 @@ services:
     restart: unless-stopped
     command: worker
     networks:
-      - backend
+      - data
       - socket_net
     environment: *authentik-environment
     user: root
@@ -93,6 +94,8 @@ networks:
   backend:
     external: true
     name: homelab_backend
+  data:
+    internal: true
 
   socket_net:
     external: true

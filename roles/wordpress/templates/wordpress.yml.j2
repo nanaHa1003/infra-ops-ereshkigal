@@ -13,6 +13,7 @@ services:
       - WORDPRESS_DB_PASSWORD={{ vault_secrets.wordpress.mysql_password }}
     networks:
       - backend
+      - data
     user: "1000:1000"
     volumes:
       - {{ storage_root }}/wordpress/html:/var/www/html:z
@@ -30,7 +31,7 @@ services:
 {% endif %}
       - TZ={{ timezone }}
     networks:
-      - backend
+      - data
     volumes:
       - {{ storage_root }}/wordpress/db:/var/lib/mysql:Z
     command: "--max_allowed_packet={{ wordpress_mariadb_max_allowed_packet }}"
@@ -39,3 +40,5 @@ networks:
   backend:
     external: true
     name: homelab_backend
+  data:
+    internal: true
