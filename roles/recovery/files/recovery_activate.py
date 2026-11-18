@@ -76,21 +76,38 @@ def ready(service,target):
     # Expected service names come from the exact rendered Compose, not arbitrary running containers.
     config=json.loads(_docker(args+['config','--format','json']))
     expected=set(config['services'])
+    private_network = config.get('networks', {}).get('data')
+    expected_networks = {}
+    if private_network:
+        data_name = private_network['name']
+        if not private_network.get('internal') or not json.loads(
+            _docker(['network', 'inspect', '--format', '{{json .Internal}}', data_name])
+        ):
+            raise BackupError(f'{data_name} is not an internal network')
+        for name, definition in config['services'].items():
+            networks = definition.get('networks', {})
+            if 'data' in networks:
+                expected_networks[name] = {config['networks'][key]['name'] for key in networks}
     deadline=time.monotonic()+180
     while time.monotonic()<deadline:
         identifiers=_docker(args+['ps','--all','--quiet']).decode().split()
         found=set(); healthy=True
+        containers = {}
         for container in identifiers:
-            selected=json.loads(_docker(['inspect','--format','{"service":{{json (index .Config.Labels "com.docker.compose.service")}},"state":{{json .State}}}',container]))
+            selected=json.loads(_docker(['inspect','--format','{"service":{{json (index .Config.Labels "com.docker.compose.service")}},"state":{{json .State}},"networks":{{json .NetworkSettings.Networks}}}',container]))
+            containers[container] = selected
             found.add(selected['service']); status=selected['state']
-            healthy &= status.get('Running') is True and status.get('Health',{}).get('Status','healthy')=='healthy'
+            healthy &= status.get('Running') is True and (status.get('Health') or {}).get('Status','healthy')=='healthy'
         if found>=expected and healthy:
+            for row in containers.values():
+                name = row['service']
+                if name in expected_networks and set(row['networks'] or {}) != expected_networks[name]:
+                    raise BackupError(f'{name} network mismatch: expected {sorted(expected_networks[name])}, found {sorted(row["networks"] or {})}')
             try:
-                for container in identifiers:
-                    row=json.loads(_docker(['inspect','--format','{"service":{{json (index .Config.Labels "com.docker.compose.service")}},"health":{{json .State.Health}}}',container]))
+                for container,row in containers.items():
                     probe=APP_PROBES.get(row['service'])
                     if probe: _docker(['exec',container,*probe],timeout=20)
-                    elif not row.get('health') or row['health'].get('Status')!='healthy':
+                    elif (row['state'].get('Health') or {}).get('Status')!='healthy':
                         raise BackupError('application ready probe unsupported')
                 return {'containers_ready':True,'application_ready':True,'application_login':'manual_confirmation_required'}
             except BackupError: pass

@@ -203,6 +203,13 @@ management (already installed on the current host).
 Caddy is recreated when its Caddyfile changes so it reads the new bind-mounted
 file, even when the image and Compose definition are unchanged.
 
+Authentik, n8n and WordPress each use a Compose-managed internal data network.
+Their databases and Authentik's Redis attach only to that stack's data network.
+Caddy still reaches the application frontends through `homelab_backend`, and
+the Authentik worker keeps its outbound access through `socket_net`.
+Database backups run through `docker exec` by container name. Recovery
+activation checks the internal network and container membership before cutover.
+
 New-API is retired from this repository. Existing secrets and data are retained.
 The existing containers can be kept stopped with restart disabled; neither
 `site.yml` nor `down.yml` manages them. Preserve `new-api_pg_data` and

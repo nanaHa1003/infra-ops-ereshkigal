@@ -79,11 +79,27 @@ class RecoveryAnsible(unittest.TestCase):
         result=subprocess.run([executable,str(play),'-i',str(self.inventory),'--skip-tags','molecule-notest'],cwd=self.scratch,env={**os.environ,'ANSIBLE_CONFIG':str(self.config),'ANSIBLE_NOCOLOR':'1'},capture_output=True,text=True,timeout=90)
         self.assertEqual(result.returncode,0,result.stdout+result.stderr)
         self.assertNotIn('Start/Update',result.stdout)
+        memberships = {
+            'auth': {'postgresql': {'data'}, 'redis': {'data'},
+                     'authentik-server': {'backend', 'data'}, 'authentik-worker': {'socket_net', 'data'}},
+            'n8n': {'n8n-postgres': {'data'}, 'n8n': {'backend', 'data'}},
+            'wordpress': {'mariadb': {'data'}, 'wordpress': {'backend', 'data'}},
+        }
         for service in IMAGE_VARIABLES:
             path=self.scratch/'stack'/service/'docker-compose.yml'
             self.assertTrue(path.exists(),str(path))
             compose=yaml.safe_load(path.read_text())
             self.assertTrue(all('@sha256:' in value['image'] for value in compose['services'].values()))
+            if service in memberships:
+                self.assertEqual(compose['name'], service)
+                self.assertEqual(compose['networks']['data'], {'internal': True})
+                self.assertEqual(compose['networks']['backend'], {'external': True, 'name': 'homelab_backend'})
+                if service == 'auth':
+                    self.assertEqual(compose['networks']['socket_net'], {'external': True, 'name': 'socket_net'})
+                for container, networks in memberships[service].items():
+                    self.assertEqual(set(compose['services'][container]['networks']), networks, container)
+                    if networks == {'data'}:
+                        self.assertFalse(compose['services'][container].get('ports'), container)
             if service=='immich':
                 database=compose['services']['database']
                 self.assertTrue(any(mount.endswith(':/var/lib/postgresql:Z') for mount in database['volumes']))

@@ -108,6 +108,6 @@ class IntegrationGate(unittest.TestCase):
             skipped=[]
             def wasSuccessful(self):return True
         with self.assertRaises(RuntimeError):gate.require_matrix(Result())
-        result=Result();result.testsRun=5;result.skipped=[('fixture','missing Docker')]
+        result=Result();result.testsRun=6;result.skipped=[('fixture','missing Docker')]
         with self.assertRaises(RuntimeError):gate.require_matrix(result)
         result.skipped=[];gate.require_matrix(result)

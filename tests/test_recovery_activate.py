@@ -1,6 +1,7 @@
 """Starting applications is a separate, fenced handoff."""
 import copy
 import importlib
+import json
 from pathlib import Path
 import sys
 import unittest
@@ -30,6 +31,31 @@ class Activation(unittest.TestCase):
         with patch.object(self.module,'ready',side_effect=self.module.BackupError('not ready')) as ready:
             with self.assertRaises(self.module.BackupError): self.module.check_activation_ready(['n8n','proxy'],{'stack_root':'/fixture'})
         self.assertEqual(ready.call_count,1)
+    def test_ready_checks_private_network_membership(self):
+        compose = {'services': {'n8n-postgres': {'networks': {'data': None}}},
+                   'networks': {'data': {'name': 'n8n_data', 'internal': True}}}
+        networks = {'n8n_data': {}}
+        internal = True
+
+        def docker(args, **kwargs):
+            if 'config' in args:
+                return json.dumps(compose)
+            if 'ps' in args:
+                return b'postgres-id'
+            if args[:2] == ['network', 'inspect']:
+                return json.dumps(internal)
+            return json.dumps({'service': 'n8n-postgres',
+                               'state': {'Running': True, 'Health': {'Status': 'healthy'}},
+                               'networks': networks})
+
+        with patch.object(self.module, '_docker', side_effect=docker):
+            self.assertTrue(self.module.ready('n8n', {'stack_root': '/fixture'})['application_ready'])
+            networks['homelab_backend'] = {}
+            with self.assertRaisesRegex(self.module.BackupError, 'n8n-postgres.*homelab_backend'):
+                self.module.ready('n8n', {'stack_root': '/fixture'})
+            internal = False
+            with self.assertRaisesRegex(self.module.BackupError, 'n8n_data is not an internal network'):
+                self.module.ready('n8n', {'stack_root': '/fixture'})
     def test_no_automatic_dns_rollback_or_old_host_restart(self):
         result=self.module.handoff_report(self.state,False)
         self.assertEqual(result['status'],'awaiting_cutover')

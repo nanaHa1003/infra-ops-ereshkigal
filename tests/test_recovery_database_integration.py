@@ -24,17 +24,28 @@ class RealDatabaseRecovery(unittest.TestCase):
         base = Path(os.environ['HOMELAB_RECOVERY_FIXTURE_ROOT']) / run
         base.mkdir(mode=0o700)
         source_name = 'recovery-source-' + run
+        network = 'none'
+        if service in ('auth', 'n8n', 'wordpress'):
+            network = 'recovery-data-' + run
+            _docker(['network', 'create', '--internal', network])
+            self.addCleanup(_docker, ['network', 'rm', network])
+            self.assertTrue(json.loads(_docker(['network', 'inspect', '--format', '{{json .Internal}}', network])))
+        db_user, database = ('authentik', 'authentik') if service == 'auth' else ('app', 'appdb')
         state = None
         try:
             postgres = major != 'mariadb'
-            args = ['run', '-d', '--name', source_name, '--network', 'none', '-e', 'POSTGRES_PASSWORD=fake-source', '-e', 'POSTGRES_USER=app', '-e', 'POSTGRES_DB=appdb'] if postgres else ['run', '-d', '--name', source_name, '--network', 'none', '-e', 'MARIADB_ROOT_PASSWORD=fake-source', '-e', 'MYSQL_USER=app', '-e', 'MYSQL_PASSWORD=fake-app', '-e', 'MYSQL_DATABASE=appdb']
+            args = ['run', '-d', '--name', source_name, '--network', network]
+            if postgres:
+                args += ['-e', 'POSTGRES_PASSWORD=fake-source', '-e', f'POSTGRES_USER={db_user}', '-e', f'POSTGRES_DB={database}']
+            else:
+                args += ['-e', 'MARIADB_ROOT_PASSWORD=fake-source', '-e', 'MYSQL_USER=app', '-e', 'MYSQL_PASSWORD=fake-app', '-e', 'MYSQL_DATABASE=appdb']
             args += [image]
             if extension: args += ['postgres', '-c', 'config_file=/etc/postgresql/postgresql.conf', '-c', 'shared_preload_libraries=vchord.so,vectors.so']
             _docker(args, timeout=180)
             spec = {'name': source_name}
             for _ in range(120):
                 try:
-                    if postgres: _docker(['exec', source_name, 'pg_isready', '-h', '127.0.0.1', '-U', 'app', '-d', 'appdb'])
+                    if postgres: _docker(['exec', source_name, 'pg_isready', '-h', '127.0.0.1', '-U', db_user, '-d', database])
                     else: mysql_sql(spec, 'SELECT 1;', tcp=True)
                     break
                 except BackupError: time.sleep(1)
@@ -42,7 +53,7 @@ class RealDatabaseRecovery(unittest.TestCase):
                 sql = 'CREATE TABLE parent(id integer PRIMARY KEY, name text); CREATE TABLE child(id integer PRIMARY KEY, parent_id integer REFERENCES parent(id)); INSERT INTO parent VALUES(1,\'fixture\'); INSERT INTO child VALUES(2,1);'
                 if extension:
                     sql += "CREATE EXTENSION vector; CREATE EXTENSION vectors; CREATE EXTENSION vchord CASCADE; CREATE TABLE embedding(id integer PRIMARY KEY, value vector(3)); INSERT INTO embedding VALUES(1,'[1,2,3]'); CREATE INDEX embedding_hnsw ON embedding USING hnsw(value vector_l2_ops);"
-                pg_sql(spec, sql, 'appdb')
+                pg_sql(spec, sql, database)
                 kind = 'postgres'; suffix = 'dump'
             else:
                 mysql_sql(spec, "CREATE DATABASE IF NOT EXISTS appdb; CREATE USER IF NOT EXISTS 'app'@'%' IDENTIFIED BY 'fake-app'; GRANT ALL ON appdb.* TO 'app'@'%'; CREATE TABLE appdb.parent(id int PRIMARY KEY, name text); INSERT INTO appdb.parent VALUES(1,'fixture'); CREATE TABLE appdb.child(id int PRIMARY KEY,parent_id int, FOREIGN KEY(parent_id) REFERENCES parent(id)); INSERT INTO appdb.child VALUES(2,1); CREATE DEFINER='app'@'%' PROCEDURE appdb.read_parent() SELECT * FROM appdb.parent; CREATE DEFINER='app'@'%' TRIGGER appdb.parent_update BEFORE UPDATE ON appdb.parent FOR EACH ROW SET NEW.name=UPPER(NEW.name); CREATE DEFINER='app'@'%' EVENT appdb.test_event ON SCHEDULE EVERY 1 DAY DO UPDATE appdb.parent SET name='event';")
@@ -50,8 +61,8 @@ class RealDatabaseRecovery(unittest.TestCase):
             exported=base/'exported';exported.mkdir(mode=0o700)
             metadata=database_export({'kind':kind,'container':source_name},exported)
             dump=(exported/('database.'+suffix)).read_bytes()
-            self.assertEqual(metadata['database'],'appdb')
-            self.assertEqual(metadata['role'],'app')
+            self.assertEqual(metadata['database'], database)
+            self.assertEqual(metadata['role'], db_user)
             if extension:self.assertEqual(set(metadata['preload_libraries'].split(',')),{'vchord.so','vectors.so'})
             if not postgres:self.assertEqual(metadata['definers'],['app@%'])
             _docker(['rm', '-f', '-v', source_name])
@@ -74,14 +85,14 @@ class RealDatabaseRecovery(unittest.TestCase):
             self.assertNotEqual(inspection['host'].get('NetworkMode'),'host')
             self.assertFalse(any(row.get('Destination') in ('/var/run/docker.sock','/run/podman/podman.sock') for row in inspection['mounts']))
             self.assertEqual(inspection['run'],run)
-            network=json.loads(_docker(['network','inspect','--format','{{json .Internal}}',state['databases'][service]['network']]))
-            self.assertTrue(network)
+            restore_network = json.loads(_docker(['network','inspect','--format','{{json .Internal}}',state['databases'][service]['network']]))
+            self.assertTrue(restore_network)
             recovered = database_spec(service, model, target, state)
             if postgres:
-                self.assertEqual(pg_sql(recovered, 'SELECT name FROM parent WHERE id=1;', 'appdb'), 'fixture')
-                self.assertEqual(pg_sql(recovered, "SELECT tableowner FROM pg_tables WHERE tablename='parent';", 'appdb'), 'app')
-                self.assertEqual(pg_sql(recovered, "SELECT rolsuper FROM pg_roles WHERE rolname='app';"), 'f')
-                with self.assertRaises(BackupError): pg_sql(recovered, 'INSERT INTO child VALUES(3,999);', 'appdb')
+                self.assertEqual(pg_sql(recovered, 'SELECT name FROM parent WHERE id=1;', database), 'fixture')
+                self.assertEqual(pg_sql(recovered, "SELECT tableowner FROM pg_tables WHERE tablename='parent';", database), db_user)
+                self.assertEqual(pg_sql(recovered, f"SELECT rolsuper FROM pg_roles WHERE rolname='{db_user}';"), 'f')
+                with self.assertRaises(BackupError): pg_sql(recovered, 'INSERT INTO child VALUES(3,999);', database)
                 if extension: self.assertEqual(pg_sql(recovered, 'SELECT count(*) FROM embedding;', 'appdb'), '1')
                 if major == '18': self.assertTrue(list(data.glob('18/*/PG_VERSION')))
             else:
@@ -95,15 +106,15 @@ class RealDatabaseRecovery(unittest.TestCase):
             self.assertTrue(any(data.iterdir()))
             # Handoff reuses persistent data after validation DB is stopped.
             production = 'recovery-handoff-' + run
-            args=['run','-d','--name',production,'--network','none','--volume',str(data)+':'+recovered['mount']+':Z']
-            args += ['-e','POSTGRES_PASSWORD=unused','-e','POSTGRES_USER=app','-e','POSTGRES_DB=appdb',image] if postgres else ['-e','MARIADB_ROOT_PASSWORD=unused',image,'--event-scheduler=OFF']
+            args=['run','-d','--name',production,'--network',network,'--volume',str(data)+':'+recovered['mount']+':Z']
+            args += ['-e','POSTGRES_PASSWORD=unused','-e',f'POSTGRES_USER={db_user}','-e',f'POSTGRES_DB={database}',image] if postgres else ['-e','MARIADB_ROOT_PASSWORD=unused',image,'--event-scheduler=OFF']
             if extension: args += ['postgres','-c','config_file=/etc/postgresql/postgresql.conf']
             try:
                 _docker(args,timeout=180)
                 for _ in range(120):
                     try:
                         if postgres:
-                            value=_docker(['exec',production,'psql','-U','app','-d','appdb','-Atc','SELECT name FROM parent WHERE id=1;']).decode().strip()
+                            value=_docker(['exec',production,'psql','-U',db_user,'-d',database,'-Atc','SELECT name FROM parent WHERE id=1;']).decode().strip()
                         else:
                             value=_docker(['exec','-e','MYSQL_PWD',production,'mariadb','-uapp','--host=127.0.0.1','--database=appdb','--batch','--skip-column-names','--execute=SELECT name FROM parent WHERE id=1;'],env={'MYSQL_PWD':'fake-app'}).decode().strip()
                         break
@@ -113,6 +124,16 @@ class RealDatabaseRecovery(unittest.TestCase):
                         time.sleep(1)
                 else: self.fail('handoff database not ready')
                 self.assertEqual(value,'fixture' if postgres else 'UPDATED')
+                if network != 'none':
+                    client = ['run', '--rm', '--network', network]
+                    if postgres:
+                        client += ['-e', 'PGPASSWORD=fake-app', '--entrypoint', 'psql', image, '-h', production,
+                                   '-U', db_user, '-d', database, '-Atc', 'SELECT name FROM parent WHERE id=1;']
+                    else:
+                        client += ['-e', 'MYSQL_PWD=fake-app', '--entrypoint', 'mariadb', image, '--host', production,
+                                   '-uapp', '--database=appdb', '--batch', '--skip-column-names',
+                                   '--execute=SELECT name FROM parent WHERE id=1;']
+                    self.assertEqual(_docker(client, timeout=60).decode().strip(), value)
                 if extension:
                     self.assertIn('1',_docker(['exec',production,'psql','-U','app','-d','appdb','-Atc','SELECT count(*) FROM embedding;']).decode())
             finally: _docker(['rm','-f','-v',production])
@@ -125,6 +146,7 @@ class RealDatabaseRecovery(unittest.TestCase):
 
     def test_postgres16(self): self.roundtrip('n8n', 'postgres:16.10-alpine', '16')
     def test_postgres18(self): self.roundtrip('n8n', 'postgres:18.0-alpine', '18')
+    def test_authentik_postgres18(self): self.roundtrip('auth', 'postgres:18.0-alpine', '18')
     def test_immich_extensions(self): self.roundtrip('immich', 'ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0', '14', True)
     def test_mariadb_routines_and_definers(self):
         self.roundtrip('wordpress', 'mariadb:11.4.5', 'mariadb')

@@ -4,7 +4,7 @@ services:
     image: {{ n8n_postgres_image }}
     restart: unless-stopped
     networks:
-      - backend
+      - data
     environment:
       - POSTGRES_USER={{ vault_secrets.n8n.postgres_user }}
       - POSTGRES_PASSWORD={{ vault_secrets.n8n.postgres_password }}
@@ -25,6 +25,7 @@ services:
         condition: service_healthy
     networks:
       - backend
+      - data
     environment:
       - DB_TYPE=postgresdb
       - DB_POSTGRESDB_HOST=n8n-postgres
@@ -46,3 +47,5 @@ networks:
   backend:
     external: True
     name: homelab_backend
+  data:
+    internal: true
