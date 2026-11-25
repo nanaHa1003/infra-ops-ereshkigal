@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM caddy:2.11.9-builder-alpine@sha256:646fee578e680989ca5c7fd1ce6f1de574d19fd71ef2221810cc0510a9f40c86 AS builder
+FROM --platform=$BUILDPLATFORM caddy:2.11.9-builder-alpine@sha256:86e132d1d6db8850352b2dbc15f82a4cb25363ac305ee41e11405873e5931f37 AS builder
 
 # renovate: datasource=github-releases depName=caddyserver/caddy
 ARG CADDY_VERSION=v2.11.9
